@@ -94,7 +94,7 @@ async function main() {
     async () => {
       try {
         const { stdout } = await execAsync('npm pack --dry-run');
-        const sizeMatch = stdout.match(/package size:\s+([\d.]+)\s+kB/);
+        const sizeMatch = stdout.match(/package size:\s+([\d.]+)/);
         if (sizeMatch) {
           const size = parseFloat(sizeMatch[1]);
           console.log(`  (Actual size: ${size} kB)`);
