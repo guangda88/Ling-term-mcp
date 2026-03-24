@@ -8,10 +8,19 @@ import sys
 import os
 from pathlib import Path
 
-# 添加 LingMinOpt 路径
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "LingMinOpt"))
+# 添加 LingMinOpt 路径 - 支持多种安装方式
+lingminopt_paths = [
+    Path(__file__).parent.parent.parent / "LingMinOpt",
+    Path("/home/ai/LingMinOpt"),
+]
 
-from lingminopt import MinimalOptimizer, SearchSpace
+for lingminopt_path in lingminopt_paths:
+    if lingminopt_path.exists():
+        sys.path.insert(0, str(lingminopt_path))
+        print(f"✅ 使用 LingMinOpt 路径: {lingminopt_path}")
+        break
+
+from lingminopt import MinimalOptimizer, SearchSpace, ExperimentConfig
 import subprocess
 import time
 import json
@@ -149,19 +158,24 @@ def main():
 
     # 1. 创建搜索空间
     search_space = create_search_space()
-    print(f"📊 搜索空间: {len(search_space.parameters)} 个变量")
-    for param in search_space.parameters:
-        print(f"   - {param.name}: {param.param_type}")
+    # SearchSpace没有parameters属性，直接打印信息
+    print(f"📊 搜索空间包含: max_connections, ping_interval, command_timeout, output_buffer_size, session_cache_ttl, log_level")
 
-    # 2. 创建优化器
+    # 2. 创建优化器配置
+    config = ExperimentConfig(
+        max_experiments=50,
+        improvement_threshold=0.01,
+        time_budget=300,  # 5分钟
+        early_stopping_patience=10,
+        direction="maximize",  # 最大化评分
+        random_seed=42
+    )
+
+    # 3. 创建优化器
     optimizer = MinimalOptimizer(
-        evaluator=evaluate_mcp_performance,
+        evaluate=evaluate_mcp_performance,
         search_space=search_space,
-        config={
-            "max_iterations": 50,
-            "strategy": "grid_search",
-            "verbose": True
-        }
+        config=config
     )
 
     # 3. 运行优化
@@ -181,12 +195,23 @@ def main():
         print(f"   {key}: {value}")
 
     # 5. 保存结果
+    # 计算搜索空间大小（离散参数的组合数）
+    space_size = (
+        len([50, 100, 200, 500]) *
+        len([5, 10, 30, 60]) *
+        len([30, 60, 120, 300]) *
+        len([10000, 50000, 100000, 500000]) *
+        len([300, 600, 1800, 3600]) *
+        len(["debug", "info", "warn", "error"])
+    )
+
+    # 5. 保存结果
     results = {
         "best_score": result.best_score,
         "best_params": result.best_params,
         "optimization_time": elapsed_time,
         "iterations": len(result.history),
-        "search_space_size": search_space.size()
+        "search_space_size": space_size
     }
 
     results_file = Path(__file__).parent / "optimization_results.json"
@@ -202,7 +227,7 @@ def main():
         f.write(f"**优化时间**: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"**优化耗时**: {elapsed_time:.2f} 秒\n")
         f.write(f"**迭代次数**: {len(result.history)}\n")
-        f.write(f"**搜索空间大小**: {search_space.size()}\n\n")
+        f.write(f"**搜索空间大小**: {space_size}\n\n")
         f.write("## 最佳配置\n\n")
         f.write("```json\n")
         f.write(json.dumps(result.best_params, indent=2))
