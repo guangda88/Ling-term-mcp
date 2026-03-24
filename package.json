@@ -28,7 +28,8 @@
     "prepublishOnly": "npm run clean && npm run build",
     "prepare": "husky install || true",
     "docs": "typedoc --out docs/api src",
-    "optimize": "cd optimization && python3 optimize_mcp_params.py"
+    "optimize": "cd optimization && python3 optimize_mcp_params.py",
+    "verify": "tsx scripts/verify-publish.ts"
   },
   "keywords": [
     "mcp",
