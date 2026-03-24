@@ -5,6 +5,8 @@
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { securityValidator } from '../security/validator.js';
+import { withPerformanceTracking, performanceMonitor } from '../monitoring/performance.js';
 
 const execAsync = promisify(exec);
 
@@ -50,15 +52,27 @@ export const executeCommand = {
       throw new Error('Command is required and must be a string');
     }
 
+    // Security validation
+    const securityCheck = securityValidator.validateCommand(command, cmdArgs || []);
+    if (!securityCheck.valid) {
+      throw new Error(`Security validation failed: ${securityCheck.error}`);
+    }
+
     // Build full command
     const fullCommand = cmdArgs.length > 0 ? [command, ...cmdArgs].join(' ') : command;
 
-    // Execute command
+    // Execute command with performance tracking
     try {
-      const { stdout, stderr } = await execAsync(fullCommand, {
-        timeout: 60000, // 60 second timeout
-        env: { ...process.env, TERM: 'xterm-256color' },
-      });
+      const { stdout, stderr } = await withPerformanceTracking(
+        command,
+        async () => {
+          return await execAsync(fullCommand, {
+            timeout: 60000, // 60 second timeout
+            env: { ...process.env, TERM: 'xterm-256color' },
+          });
+        },
+        performanceMonitor
+      );
 
       const output = stdout || stderr || 'Command executed successfully';
 
