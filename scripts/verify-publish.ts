@@ -93,15 +93,25 @@ async function main() {
     'Package Size',
     async () => {
       try {
-        const { stdout } = await execAsync('npm pack --dry-run');
-        const sizeMatch = stdout.match(/package size:\s+([\d.]+)/);
-        if (sizeMatch) {
-          const size = parseFloat(sizeMatch[1]);
-          console.log(`  (Actual size: ${size} kB)`);
-          return size < 50; // Should be < 50 kB
+        const { stderr } = await execAsync('npm pack --dry-run');
+        // Look for the line containing "package size:"
+        const lines = stderr.split('\n');
+        const sizeLine = lines.find(line => line.includes('package size:'));
+        if (!sizeLine) {
+          console.error('  Could not find package size line');
+          return false;
         }
-        return false;
-      } catch {
+        // Extract the size value
+        const match = sizeLine.match(/([\d.]+)\s*kB/);
+        if (!match) {
+          console.error('  Could not parse size:', sizeLine);
+          return false;
+        }
+        const size = parseFloat(match[1]);
+        console.log(`  (Actual size: ${size} kB)`);
+        return size < 50; // Should be < 50 kB
+      } catch (error) {
+        console.error('  Error checking package size:', error);
         return false;
       }
     },
