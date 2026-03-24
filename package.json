@@ -51,6 +51,11 @@
     "url": "https://github.com/guangda/ling-term-mcp/issues"
   },
   "homepage": "https://github.com/guangda/ling-term-mcp#readme",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "engines": {
     "node": ">=18.0.0"
   },

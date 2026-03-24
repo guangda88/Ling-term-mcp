@@ -1,0 +1,14 @@
+{
+  "best_score": 0.5770000000000001,
+  "best_params": {
+    "max_connections": 500,
+    "ping_interval": 5,
+    "command_timeout": 30,
+    "output_buffer_size": 10000,
+    "session_cache_ttl": 3600,
+    "log_level": "warn"
+  },
+  "optimization_time": 47.048914432525635,
+  "iterations": 23,
+  "search_space_size": 4096
+}

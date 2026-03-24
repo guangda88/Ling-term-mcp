@@ -1,0 +1,14 @@
+{
+  "mcp": {
+    "max_connections": 100,
+    "ping_interval": 5,
+    "command_timeout": 60,
+    "output_buffer_size": 100000
+  },
+  "sessions": {
+    "cache_ttl": 1800
+  },
+  "logging": {
+    "level": "debug"
+  }
+}
