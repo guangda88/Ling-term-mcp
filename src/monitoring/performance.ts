@@ -139,11 +139,11 @@ export class PerformanceMonitor {
    * Recalculate metrics from execution history
    */
   private recalculateMetrics(): void {
-    const successfulExecutions = this.executionHistory.filter(e => e.success);
-    const durations = successfulExecutions.map(e => e.duration);
+    const successfulExecutions = this.executionHistory.filter((e) => e.success);
+    const durations = successfulExecutions.map((e) => e.duration);
 
     // Calculate error rate first (before early return)
-    const errorCount = this.executionHistory.filter(e => !e.success).length;
+    const errorCount = this.executionHistory.filter((e) => !e.success).length;
     this.metrics.errorRate =
       this.executionHistory.length > 0
         ? errorCount / this.executionHistory.length
@@ -201,7 +201,7 @@ export class PerformanceMonitor {
         `  ${command}:`,
         `    Count: ${times.length}`,
         `    Avg: ${stats.avg.toFixed(2)}ms`,
-        `    P95: ${stats.p95.toFixed(2)}ms`,
+        `    P95: ${stats.p95.toFixed(2)}ms`
       );
     }
 
@@ -230,7 +230,7 @@ export class PerformanceMonitor {
       metrics.averageExecutionTime > thresholds.averageExecutionTime
     ) {
       failures.push(
-        `Average execution time ${metrics.averageExecutionTime.toFixed(2)}ms exceeds threshold ${thresholds.averageExecutionTime}ms`,
+        `Average execution time ${metrics.averageExecutionTime.toFixed(2)}ms exceeds threshold ${thresholds.averageExecutionTime}ms`
       );
     }
 
@@ -239,7 +239,7 @@ export class PerformanceMonitor {
       metrics.p95ExecutionTime > thresholds.p95ExecutionTime
     ) {
       failures.push(
-        `P95 execution time ${metrics.p95ExecutionTime.toFixed(2)}ms exceeds threshold ${thresholds.p95ExecutionTime}ms`,
+        `P95 execution time ${metrics.p95ExecutionTime.toFixed(2)}ms exceeds threshold ${thresholds.p95ExecutionTime}ms`
       );
     }
 
@@ -248,16 +248,13 @@ export class PerformanceMonitor {
       metrics.p99ExecutionTime > thresholds.p99ExecutionTime
     ) {
       failures.push(
-        `P99 execution time ${metrics.p99ExecutionTime.toFixed(2)}ms exceeds threshold ${thresholds.p99ExecutionTime}ms`,
+        `P99 execution time ${metrics.p99ExecutionTime.toFixed(2)}ms exceeds threshold ${thresholds.p99ExecutionTime}ms`
       );
     }
 
-    if (
-      thresholds.errorRate &&
-      metrics.errorRate > thresholds.errorRate
-    ) {
+    if (thresholds.errorRate && metrics.errorRate > thresholds.errorRate) {
       failures.push(
-        `Error rate ${(metrics.errorRate * 100).toFixed(2)}% exceeds threshold ${(thresholds.errorRate * 100).toFixed(2)}%`,
+        `Error rate ${(metrics.errorRate * 100).toFixed(2)}% exceeds threshold ${(thresholds.errorRate * 100).toFixed(2)}%`
       );
     }
 

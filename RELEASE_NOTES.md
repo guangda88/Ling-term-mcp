@@ -62,8 +62,8 @@ Ling-term-mcp (灵犀) v1.0.0 is now available! This is the first production-rea
   - Session management (5 tests)
 
 ### Package Optimization
-- **Package Size**: 22.2 kB (down from 49.7 kB)
-- **Package Files**: 51 files (down from 84)
+- **Package Size**: 23.8 kB (down from 49.7 kB)
+- **Package Files**: 52 files (down from 84)
 - **Clean Distribution**: Only includes dist/, README.md, LICENSE
 - **TypeScript Definitions**: Full .d.ts support
 
@@ -81,8 +81,8 @@ npm install ling-term-mcp
 {
   "mcpServers": {
     "ling-term-mcp": {
-      "command": "node",
-      "args": ["/path/to/node_modules/ling-term-mcp/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "ling-term-mcp"]
     }
   }
 }
@@ -94,8 +94,8 @@ npm install ling-term-mcp
 {
   "mcpServers": {
     "ling-term-mcp": {
-      "command": "node",
-      "args": ["/path/to/node_modules/ling-term-mcp/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "ling-term-mcp"]
     }
   }
 }
@@ -141,7 +141,7 @@ npm install ling-term-mcp
 ### Default Whitelist (100+ commands)
 - `ls`, `pwd`, `cat`, `echo`, `grep`, `find`, `head`, `tail`
 - `git`, `npm`, `node`, `python`, `python3`
-- `mkdir`, `touch`, `cp`, `mv`, `rm -r` (with restrictions)
+- `mkdir`, `touch`, `cp`, `mv` (with restrictions)
 - And many more...
 
 ### Default Blacklist (50+ commands)

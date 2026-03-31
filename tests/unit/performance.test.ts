@@ -2,7 +2,11 @@
  * Performance Monitor Tests
  */
 
-import { PerformanceMonitor, withPerformanceTracking, LATENCY_BUCKETS } from '../../src/monitoring/performance';
+import {
+  PerformanceMonitor,
+  withPerformanceTracking,
+  LATENCY_BUCKETS,
+} from '../../src/monitoring/performance';
 
 describe('PerformanceMonitor', () => {
   let monitor: PerformanceMonitor;
@@ -144,7 +148,7 @@ describe('PerformanceMonitor', () => {
 
       expect(result.passed).toBe(false);
       expect(result.failures).toContainEqual(
-        expect.stringContaining('Average execution time'),
+        expect.stringContaining('Average execution time')
       );
     });
 
@@ -163,7 +167,7 @@ describe('PerformanceMonitor', () => {
 
       expect(result.passed).toBe(false);
       expect(result.failures).toContainEqual(
-        expect.stringContaining('Error rate'),
+        expect.stringContaining('Error rate')
       );
     });
   });
@@ -263,7 +267,9 @@ describe('PerformanceMonitor', () => {
     it('should have defined latency buckets', () => {
       expect(LATENCY_BUCKETS).toBeDefined();
       expect(LATENCY_BUCKETS.length).toBeGreaterThan(0);
-      expect(LATENCY_BUCKETS).toEqual([10, 50, 100, 250, 500, 1000, 2500, 5000, 10000]);
+      expect(LATENCY_BUCKETS).toEqual([
+        10, 50, 100, 250, 500, 1000, 2500, 5000, 10000,
+      ]);
     });
   });
 });

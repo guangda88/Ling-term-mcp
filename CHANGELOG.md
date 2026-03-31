@@ -85,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG
 
 #### Package
-- Optimized npm package: 22.2 kB (51 files)
+- Optimized npm package: 23.8 kB (52 files)
 - TypeScript definitions included (.d.ts)
 - Source maps included (.js.map)
 - MIT license

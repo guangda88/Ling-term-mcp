@@ -3,12 +3,15 @@
  * Executes terminal commands safely
  */
 
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { securityValidator } from '../security/validator.js';
-import { withPerformanceTracking, performanceMonitor } from '../monitoring/performance.js';
+import {
+  withPerformanceTracking,
+  performanceMonitor,
+} from '../monitoring/performance.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 /**
  * Execute command tool definition
@@ -53,21 +56,21 @@ export const executeCommand = {
     }
 
     // Security validation
-    const securityCheck = securityValidator.validateCommand(command, cmdArgs || []);
+    const securityCheck = securityValidator.validateCommand(
+      command,
+      cmdArgs || []
+    );
     if (!securityCheck.valid) {
       throw new Error(`Security validation failed: ${securityCheck.error}`);
     }
 
-    // Build full command
-    const fullCommand = cmdArgs.length > 0 ? [command, ...cmdArgs].join(' ') : command;
-
-    // Execute command with performance tracking
+    // Execute command with performance tracking (parameterized — no shell injection)
     try {
       const { stdout, stderr } = await withPerformanceTracking(
         command,
         async () => {
-          return await execAsync(fullCommand, {
-            timeout: 60000, // 60 second timeout
+          return await execFileAsync(command, cmdArgs, {
+            timeout: 60000,
             env: { ...process.env, TERM: 'xterm-256color' },
           });
         },

@@ -2,7 +2,10 @@
  * Security Validator Tests
  */
 
-import { SecurityValidator, DEFAULT_SECURITY_CONFIG } from '../../src/security/validator';
+import {
+  SecurityValidator,
+  DEFAULT_SECURITY_CONFIG,
+} from '../../src/security/validator';
 
 // These are used in tests below
 
@@ -144,14 +147,14 @@ describe('SecurityValidator', () => {
 
     it('should include common safe commands in whitelist', () => {
       const safeCommands = ['ls', 'pwd', 'cat', 'grep', 'git'];
-      safeCommands.forEach(cmd => {
+      safeCommands.forEach((cmd) => {
         expect(DEFAULT_SECURITY_CONFIG.whitelist).toContain(cmd);
       });
     });
 
     it('should include dangerous commands in blacklist', () => {
       const dangerousCommands = ['rm', 'rmdir', 'dd', 'sudo', 'killall'];
-      dangerousCommands.forEach(cmd => {
+      dangerousCommands.forEach((cmd) => {
         expect(DEFAULT_SECURITY_CONFIG.blacklist).toContain(cmd);
       });
     });
