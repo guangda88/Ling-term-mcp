@@ -12,7 +12,7 @@ async function main() {
   // Create MCP client
   const transport = new StdioClientTransport({
     command: 'node',
-    args: [new URL('../dist/index.js', import.meta.url).pathname],
+    args: [new URL('../dist/cli.js', import.meta.url).pathname],
   });
 
   const client = new Client({

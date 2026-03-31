@@ -17,7 +17,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Clean up session storage before each test
-const SESSIONS_FILE = path.join(process.cwd(), '.ling-term-mcp', 'sessions.json');
+const SESSIONS_FILE = path.join(
+  process.cwd(),
+  '.ling-term-mcp',
+  'sessions.json'
+);
 
 beforeEach(() => {
   if (fs.existsSync(SESSIONS_FILE)) {

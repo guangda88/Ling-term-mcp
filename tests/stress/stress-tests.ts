@@ -23,15 +23,15 @@ async function executeCommand(args: string[]): Promise<{
     let stdout = '';
     let stderr = '';
 
-    child.stdout.on('data', chunk => {
+    child.stdout.on('data', (chunk) => {
       stdout += chunk;
     });
 
-    child.stderr.on('data', chunk => {
+    child.stderr.on('data', (chunk) => {
       stderr += chunk;
     });
 
-    child.on('close', status => {
+    child.on('close', (status) => {
       const duration = Date.now() - startTime;
       resolve({ status, stdout, stderr, duration });
     });
@@ -47,16 +47,17 @@ export const concurrent100Scenario = async () => {
   const commands = Array(100).fill('echo test');
   const startTime = Date.now();
 
-  const results = await Promise.all(commands.map((cmd, i) =>
-    executeCommand(['execute', `${cmd} ${i}`])
-  ));
+  const results = await Promise.all(
+    commands.map((cmd, i) => executeCommand(['execute', `${cmd} ${i}`]))
+  );
 
   const endTime = Date.now();
   const duration = endTime - startTime;
 
-  const successful = results.filter(r => r.status === 0).length;
-  const failed = results.filter(r => r.status !== 0).length;
-  const avgDuration = results.reduce((sum, r) => sum + r.duration, 0) / results.length;
+  const successful = results.filter((r) => r.status === 0).length;
+  const failed = results.filter((r) => r.status !== 0).length;
+  const avgDuration =
+    results.reduce((sum, r) => sum + r.duration, 0) / results.length;
 
   console.log(`✅ Completed in ${duration}ms`);
   console.log(`   Success: ${successful}/100`);
@@ -68,7 +69,9 @@ export const concurrent100Scenario = async () => {
   }
 
   if (avgDuration > 1000) {
-    throw new Error(`Average response time too high: ${avgDuration.toFixed(2)}ms`);
+    throw new Error(
+      `Average response time too high: ${avgDuration.toFixed(2)}ms`
+    );
   }
 
   return { successful, failed, avgDuration, duration };
@@ -103,7 +106,8 @@ export const sequential1000Scenario = async () => {
 
   const endTime = Date.now();
   const duration = endTime - startTime;
-  const avgDuration = durations.reduce((sum, d) => sum + d, 0) / durations.length;
+  const avgDuration =
+    durations.reduce((sum, d) => sum + d, 0) / durations.length;
   const maxDuration = Math.max(...durations);
   const minDuration = Math.min(...durations);
 
@@ -118,7 +122,14 @@ export const sequential1000Scenario = async () => {
     throw new Error(`Too many failures: ${failed}/1000`);
   }
 
-  return { successful, failed, avgDuration, maxDuration, minDuration, duration };
+  return {
+    successful,
+    failed,
+    avgDuration,
+    maxDuration,
+    minDuration,
+    duration,
+  };
 };
 
 /**
@@ -146,19 +157,30 @@ export const memoryStabilityScenario = async () => {
 
   // Check for memory leaks (memory should not grow continuously)
   if (memorySnapshots.length >= 3) {
-    const firstThird = memorySnapshots.slice(0, Math.floor(memorySnapshots.length / 3));
-    const lastThird = memorySnapshots.slice(-Math.floor(memorySnapshots.length / 3));
+    const firstThird = memorySnapshots.slice(
+      0,
+      Math.floor(memorySnapshots.length / 3)
+    );
+    const lastThird = memorySnapshots.slice(
+      -Math.floor(memorySnapshots.length / 3)
+    );
 
-    const avgFirst = firstThird.reduce((sum, val) => sum + val, 0) / firstThird.length;
-    const avgLast = lastThird.reduce((sum, val) => sum + val, 0) / lastThird.length;
+    const avgFirst =
+      firstThird.reduce((sum, val) => sum + val, 0) / firstThird.length;
+    const avgLast =
+      lastThird.reduce((sum, val) => sum + val, 0) / lastThird.length;
     const growthPercent = ((avgLast - avgFirst) / avgFirst) * 100;
 
-    console.log(`   Initial avg heap: ${(avgFirst / 1024 / 1024).toFixed(2)}MB`);
+    console.log(
+      `   Initial avg heap: ${(avgFirst / 1024 / 1024).toFixed(2)}MB`
+    );
     console.log(`   Final avg heap: ${(avgLast / 1024 / 1024).toFixed(2)}MB`);
     console.log(`   Memory growth: ${growthPercent.toFixed(2)}%`);
 
     if (growthPercent > 50) {
-      throw new Error(`Possible memory leak detected: ${growthPercent.toFixed(2)}% growth`);
+      throw new Error(
+        `Possible memory leak detected: ${growthPercent.toFixed(2)}% growth`
+      );
     }
   }
 
@@ -180,7 +202,8 @@ export const longRunningScenario = async () => {
     durations.push(result.duration);
   }
 
-  const avgDuration = durations.reduce((sum, d) => sum + d, 0) / durations.length;
+  const avgDuration =
+    durations.reduce((sum, d) => sum + d, 0) / durations.length;
   const maxDuration = Math.max(...durations);
 
   console.log(`✅ Completed ${iterations} iterations`);
@@ -237,9 +260,15 @@ export const runAllStressTests = async () => {
 
   console.log('📊 Stress Testing Summary:');
   console.log('====================');
-  console.log(`Concurrent 100: ${results.concurrent100 ? '✅ PASS' : '❌ FAIL'}`);
-  console.log(`Sequential 1000: ${results.sequential1000 ? '✅ PASS' : '❌ FAIL'}`);
-  console.log(`Memory stability: ${results.memoryStability ? '✅ PASS' : '❌ FAIL'}`);
+  console.log(
+    `Concurrent 100: ${results.concurrent100 ? '✅ PASS' : '❌ FAIL'}`
+  );
+  console.log(
+    `Sequential 1000: ${results.sequential1000 ? '✅ PASS' : '❌ FAIL'}`
+  );
+  console.log(
+    `Memory stability: ${results.memoryStability ? '✅ PASS' : '❌ FAIL'}`
+  );
   console.log(`Long-running: ${results.longRunning ? '✅ PASS' : '❌ FAIL'}`);
 
   const allPassed =
@@ -258,7 +287,7 @@ export const runAllStressTests = async () => {
 
 // Run if executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  runAllStressTests().catch(error => {
+  runAllStressTests().catch((error) => {
     console.error('Fatal error:', error);
     process.exit(1);
   });

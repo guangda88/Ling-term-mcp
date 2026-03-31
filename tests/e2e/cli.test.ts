@@ -19,15 +19,15 @@ async function runCli(args: string[]): Promise<{
     let stdout = '';
     let stderr = '';
 
-    child.stdout.on('data', chunk => {
+    child.stdout.on('data', (chunk) => {
       stdout += chunk;
     });
 
-    child.stderr.on('data', chunk => {
+    child.stderr.on('data', (chunk) => {
       stderr += chunk;
     });
 
-    child.on('close', status => resolve({ status, stdout, stderr }));
+    child.on('close', (status) => resolve({ status, stdout, stderr }));
     child.on('error', reject);
   });
 }
@@ -44,7 +44,8 @@ describe('Ling-term-mcp CLI', () => {
     it('should display help when no arguments provided', async () => {
       const result = await runCli([]);
       assert.ok(
-        result.stdout.includes('Ling-term-mcp') || result.stdout.includes('灵犀'),
+        result.stdout.includes('Ling-term-mcp') ||
+          result.stdout.includes('灵犀'),
         'Should show help or version'
       );
     });
@@ -61,21 +62,21 @@ describe('Ling-term-mcp CLI', () => {
   describe('MCP Server', () => {
     it('should start MCP server without errors', async () => {
       const { serverProcess } = await runMcpServer([]);
-      
+
       // Give it a moment to start
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       // Kill the server
       serverProcess.kill();
-      
+
       assert.ok(true, 'Server started without errors');
     });
 
     it('should handle MCP protocol messages', async () => {
       const { serverProcess } = await runMcpServer([]);
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       // Test with a simple JSON-RPC message
       serverProcess.stdin.write(
         JSON.stringify({
@@ -87,16 +88,16 @@ describe('Ling-term-mcp CLI', () => {
             capabilities: {},
             clientInfo: {
               name: 'test-client',
-              version: '1.0.0'
-            }
-          }
+              version: '1.0.0',
+            },
+          },
         }) + '\n'
       );
 
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       serverProcess.kill();
-      
+
       assert.ok(true, 'Server handled MCP message');
     });
   });
@@ -106,7 +107,7 @@ describe('Performance Testing', () => {
   it('should handle rapid sequential command execution', async () => {
     const commands = ['echo test', 'pwd', 'ls'];
     const results = await Promise.all(
-      commands.map(cmd => runCli(['execute', cmd]))
+      commands.map((cmd) => runCli(['execute', cmd]))
     );
 
     results.forEach((result, index) => {
@@ -119,39 +120,52 @@ describe('Performance Testing', () => {
     const startTime = Date.now();
 
     const results = await Promise.all(
-      concurrentCommands.map(cmd => runCli(['execute', cmd]))
+      concurrentCommands.map((cmd) => runCli(['execute', cmd]))
     );
 
     const endTime = Date.now();
     const duration = endTime - startTime;
 
-    results.forEach(result => {
+    results.forEach((result) => {
       assert.strictEqual(result.status, 0, 'Concurrent command failed');
     });
 
-    assert.ok(duration < 5000, `Concurrent execution took too long: ${duration}ms`);
+    assert.ok(
+      duration < 5000,
+      `Concurrent execution took too long: ${duration}ms`
+    );
   });
 });
 
 describe('Memory Testing', () => {
   it('should not leak memory on repeated executions', async () => {
     const iterations = 50;
-    
+
     // Execute same command multiple times
     for (let i = 0; i < iterations; i++) {
       const result = await runCli(['execute', 'echo test']);
       assert.strictEqual(result.status, 0, `Iteration ${i} failed`);
     }
-    
+
     // If we got here without crashing, memory is likely stable
-    assert.ok(true, `Successfully executed ${iterations} commands without memory issues`);
+    assert.ok(
+      true,
+      `Successfully executed ${iterations} commands without memory issues`
+    );
   });
 });
 
 describe('Error Handling', () => {
   it('should handle invalid commands gracefully', async () => {
-    const result = await runCli(['execute', 'invalid-command-that-does-not-exist']);
-    assert.strictEqual(result.status, null, 'Invalid command should be handled');
+    const result = await runCli([
+      'execute',
+      'invalid-command-that-does-not-exist',
+    ]);
+    assert.strictEqual(
+      result.status,
+      null,
+      'Invalid command should be handled'
+    );
   });
 
   it('should handle malformed input', async () => {

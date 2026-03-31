@@ -26,8 +26,6 @@ describe('execute_command', () => {
   });
 
   it('should require command parameter', async () => {
-    await expect(
-      executeCommand.handler({ command: '' })
-    ).rejects.toThrow();
+    await expect(executeCommand.handler({ command: '' })).rejects.toThrow();
   });
 });

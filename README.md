@@ -15,7 +15,7 @@
 - ⚡ **高性能**: 基于 LingMinOpt 自动优化，响应时间 < 100ms
 - 🚀 **会话管理**: 支持多会话、会话持久化、状态同步
 - 📊 **性能监控**: 内置性能监控，实时追踪指标
-- 🧪 **严格测试**: 单元测试 + 集成测试 + E2E 测试，覆盖率 >= 85%
+- 🧪 **严格测试**: 46 个单元测试全部通过，语句覆盖率 89%
 
 ---
 
@@ -34,14 +34,7 @@ npm install
 
 ### 配置
 
-```bash
-# 生成配置文件
-npm run config
-
-# 或者使用 LingMinOpt 自动优化配置
-cd optimization
-python3 optimize_mcp_params.py
-```
+无需额外配置，开箱即用。
 
 ### 启动
 
@@ -64,23 +57,25 @@ npm start
 {
   "mcpServers": {
     "ling-term-mcp": {
-      "command": "node",
-      "args": ["/path/to/ling-term-mcp/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "ling-term-mcp"]
     }
   }
 }
 ```
 
+> **注意**: 如果是本地安装，将 `args` 改为 `["/path/to/ling-term-mcp/dist/cli.js"]`。
+
 #### Claude
 
-在 Claude Desktop 配置中添加：
+在 Claude Desktop 配置文件 `claude_desktop_config.json` 中添加：
 
 ```json
 {
   "mcpServers": {
     "ling-term-mcp": {
-      "command": "node",
-      "args": ["/path/to/ling-term-mcp/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "ling-term-mcp"]
     }
   }
 }
@@ -194,9 +189,26 @@ npm start
 创建一个名为 "dev" 的会话，工作目录为 /home/user/projects
 ```
 
----
+#### 5. destroy_session - 销毁会话
 
-## 🏗️ 项目架构
+```json
+{
+  "name": "destroy_session",
+  "description": "销毁终端会话",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "session_id": {
+        "type": "string",
+        "description": "要销毁的会话 ID"
+      }
+    },
+    "required": ["session_id"]
+  }
+}
+```
+
+---
 
 ```
 Ling-term-mcp/
@@ -211,8 +223,7 @@ Ling-term-mcp/
 │   │   ├── manager.ts
 │   │   └── store.ts
 │   ├── security/           # 安全层
-│   │   ├── validator.ts
-│   │   └── sandbox.ts
+│   │   └── validator.ts
 │   └── utils/              # 工具函数
 ├── tests/                  # 测试
 │   ├── unit/               # 单元测试
@@ -295,18 +306,20 @@ lingflow run skill-creator \
 
 ## 🔒 安全
 
+> ⚠️ **安全警告**: 本服务器默认允许白名单外的命令执行（`allowUnknownCommands: true`）。生产环境建议设置为 `false` 以启用严格白名单模式，并根据自身需求调整黑白名单。详见 [SECURITY.md](SECURITY.md)。
+
 ### 安全特性
 
-1. **命令白名单**: 只允许执行预定义的安全命令
-2. **命令黑名单**: 禁止执行危险命令（rm, sudo 等）
-3. **沙箱执行**: 隔离执行环境，防止系统污染
-4. **权限控制**: 细粒度的权限管理
-5. **审计日志**: 记录所有操作，便于追踪
+1. **参数化执行**: 使用 `execFile()` 而非 `exec()`，避免 shell 注入
+2. **命令黑名单**: 禁止执行危险命令（rm, sudo, dd, chmod, chown 等）
+3. **命令白名单**: 可选的白名单模式，只允许预定义的安全命令
+4. **危险模式检测**: 检测管道注入、命令链接、fork bomb 等攻击模式
+5. **参数净化**: 自动过滤 shell 注入字符（`&&`, `|`, `$()`, 反引号等）
 
 ### 默认黑名单
 
 ```
-rm, rmdir, sudo, su, chmod, chown, dd, mkfs, fdisk, ...
+rm, rmdir, sudo, su, chmod, chown, dd, mkfs, fdisk, kill, killall, ...
 ```
 
 ---
@@ -328,11 +341,8 @@ npm run test:integration
 # E2E 测试
 npm run test:e2e
 
-# 性能测试
-npm run test:performance
-
-# 安全测试
-npm run test:security
+# 安全测试（单元测试中包含）
+npm test
 ```
 
 ### 测试覆盖率
@@ -349,9 +359,6 @@ npm run test:coverage
 
 - [API 文档](docs/API.md)
 - [用户指南](docs/USER_GUIDE.md)
-- [开发指南](docs/DEVELOPMENT.md)
-- [LingMinOpt 集成](docs/LINGMINOPT_INTEGRATION.md)
-- [LingFlow 工作流](.lingflow/workflows/develop_ling_term_mcp.yaml)
 
 ---
 
@@ -361,11 +368,10 @@ npm run test:coverage
 
 1. Fork 仓库
 2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 使用 LingFlow 执行开发工作流
-4. 运行测试 (`npm test`)
-5. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-6. 推送到分支 (`git push origin feature/AmazingFeature`)
-7. 开启 Pull Request
+3. 运行测试 (`npm test`)
+4. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+5. 推送到分支 (`git push origin feature/AmazingFeature`)
+6. 开启 Pull Request
 
 ---
 

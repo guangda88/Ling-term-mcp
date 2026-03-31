@@ -21,8 +21,6 @@ describe('sync_terminal', () => {
   });
 
   it('should require session_id parameter', async () => {
-    await expect(
-      syncTerminal.handler({ session_id: '' })
-    ).rejects.toThrow();
+    await expect(syncTerminal.handler({ session_id: '' })).rejects.toThrow();
   });
 });

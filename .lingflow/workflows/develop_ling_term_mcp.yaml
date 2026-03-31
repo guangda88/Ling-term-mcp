@@ -7,7 +7,7 @@ config:
   project_name: "Ling-term-mcp"
   project_code_name: "ling-term-mcp"
   chinese_name: "灵犀"
-  workspace: "/home/ai/zhineng-bridge/mcp-server"
+  workspace: "/home/ai/Ling-term-mcp"
   optimization_enabled: true
   test_coverage_target: 0.85
 

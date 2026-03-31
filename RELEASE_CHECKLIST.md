@@ -8,7 +8,7 @@
 - [x] Write unit tests (46 tests, all passing)
 - [x] Build TypeScript project (0 errors)
 - [x] Add MIT LICENSE file
-- [x] Optimize npm package (22.2 kB, 51 files)
+- [x] Optimize npm package (23.8 kB, 52 files)
 - [x] Create package tarball: `ling-term-mcp-1.0.0.tgz`
 - [x] Write comprehensive release notes
 - [x] Commit all changes to git
@@ -89,8 +89,8 @@ After publishing, update README.md with:
 
 - **Name**: `ling-term-mcp`
 - **Version**: `1.0.0`
-- **Package Size**: 22.2 kB
-- **Files**: 51
+- **Package Size**: 23.8 kB
+- **Files**: 52
 - **License**: MIT
 - **Node.js**: >=18.0.0
 

@@ -78,14 +78,10 @@ export const DEFAULT_WHITELIST: string[] = [
   'bzip2',
   'file',
   'stat',
-  'chmod',
-  'chown',
   'touch',
   'mkdir',
-  'rmdir',
   'cp',
   'mv',
-  'rm',
   'ln',
   'tree',
   'diff',
@@ -118,6 +114,8 @@ export const DEFAULT_BLACKLIST: string[] = [
   'killall',
   'pkill',
   'chattr',
+  'chmod',
+  'chown',
   'passwd',
   'usermod',
   'userdel',
@@ -136,7 +134,7 @@ export const DEFAULT_BLACKLIST: string[] = [
  * Dangerous patterns
  */
 const DANGEROUS_PATTERNS: RegExp[] = [
-  /&&\s*rm\s+-rf/,  // rm -rf combined with && or ||
+  /&&\s*rm\s+-rf/, // rm -rf combined with && or ||
   /\|\|\s*rm\s+-rf/,
   /;.*rm\s+-rf/,
   />\s*\/dev\/null/,
@@ -151,7 +149,7 @@ const DANGEROUS_PATTERNS: RegExp[] = [
   /wget.*\|\s*bash/,
   /curl.*\|\s*sh/,
   /wget.*\|\s*sh/,
-  /:(){:\|:&};:/,  // fork bomb
+  /:(){:\|:&};:/, // fork bomb
   /eval\s*\(/,
   /exec\s+\$/,
 ];
@@ -191,12 +189,16 @@ export class SecurityValidator {
   /**
    * Validate a command against security rules
    */
-  validateCommand(command: string, args: string[] = []): {
+  validateCommand(
+    command: string,
+    args: string[] = []
+  ): {
     valid: boolean;
     error?: string;
   } {
     // Check command length
-    const fullCommand = args.length > 0 ? [command, ...args].join(' ') : command;
+    const fullCommand =
+      args.length > 0 ? [command, ...args].join(' ') : command;
     if (fullCommand.length > this.config.maxCommandLength) {
       return {
         valid: false,
@@ -277,17 +279,17 @@ export class SecurityValidator {
    */
   private containsShellInjection(input: string): boolean {
     const injectionPatterns = [
-      /&&/,       // Command chaining
-      /\|\|/,     // OR chaining
-      /;/,        // Command separator
-      /\|/,       // Pipe (may be legitimate, but check context)
-      />\s*\w+/,  // Output redirection
-      /<\s*\w+/,  // Input redirection
-      /\$/,       // Variable expansion
-      /`/,        // Command substitution
-      /\$\(/,     // Command substitution
-      /\\n/,      // Newline
-      /\\r/,      // Carriage return
+      /&&/, // Command chaining
+      /\|\|/, // OR chaining
+      /;/, // Command separator
+      /\|/, // Pipe (may be legitimate, but check context)
+      />\s*\w+/, // Output redirection
+      /<\s*\w+/, // Input redirection
+      /\$/, // Variable expansion
+      /`/, // Command substitution
+      /\$\(/, // Command substitution
+      /\\n/, // Newline
+      /\\r/, // Carriage return
     ];
 
     for (const pattern of injectionPatterns) {
@@ -303,9 +305,7 @@ export class SecurityValidator {
    */
   sanitizeInput(input: string): string {
     // Remove dangerous characters
-    return input
-      .replace(/[;&|`$()<>\\]/g, '')
-      .trim();
+    return input.replace(/[;&|`$()<>\\]/g, '').trim();
   }
 
   /**
