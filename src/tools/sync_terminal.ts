@@ -4,6 +4,7 @@
  */
 
 import * as os from 'os';
+import { getSession } from '../sessions/store.js';
 
 /**
  * Sync terminal tool definition
@@ -11,7 +12,8 @@ import * as os from 'os';
 export const syncTerminal = {
   definition: {
     name: 'sync_terminal',
-    description: 'Synchronize terminal state (working directory, environment)',
+    description:
+      'Synchronize terminal state (working directory, environment, command history)',
     inputSchema: {
       type: 'object',
       properties: {
@@ -31,15 +33,21 @@ export const syncTerminal = {
       throw new Error('Session ID is required and must be a string');
     }
 
-    // Get terminal state
+    const session = await getSession(session_id);
+    if (!session) {
+      throw new Error(`Session not found: ${session_id}`);
+    }
+
     const state = {
       session_id,
-      working_directory: process.cwd(),
+      working_directory: session.working_directory,
+      environment: session.environment || {},
+      command_history: session.command_history || [],
       user: process.env.USER || process.env.USERNAME || 'unknown',
       home_directory: os.homedir(),
       platform: os.platform(),
       architecture: os.arch(),
-      environment: {
+      system_info: {
         PATH: process.env.PATH,
         SHELL: process.env.SHELL,
         LANG: process.env.LANG,

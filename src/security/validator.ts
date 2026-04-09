@@ -63,12 +63,6 @@ export const DEFAULT_WHITELIST: string[] = [
   'perl',
   'r',
   'rscript',
-  'bash',
-  'zsh',
-  'fish',
-  'sh',
-  'curl',
-  'wget',
   'tar',
   'gzip',
   'gunzip',
@@ -87,6 +81,25 @@ export const DEFAULT_WHITELIST: string[] = [
   'diff',
   'cmp',
   'patch',
+  'bash',
+  'sh',
+  'zsh',
+  'fish',
+  'curl',
+  'wget',
+  'env',
+  'printenv',
+  'sed',
+  'awk',
+  'tr',
+  'cut',
+  'xargs',
+  'tee',
+  'jq',
+  'docker',
+  'kubectl',
+  'terraform',
+  'ansible',
 ];
 
 /**
@@ -131,27 +144,26 @@ export const DEFAULT_BLACKLIST: string[] = [
 ];
 
 /**
- * Dangerous patterns
+ * Dangerous patterns — checked against the full command string
  */
 const DANGEROUS_PATTERNS: RegExp[] = [
-  /&&\s*rm\s+-rf/, // rm -rf combined with && or ||
-  /\|\|\s*rm\s+-rf/,
-  /;.*rm\s+-rf/,
-  />\s*\/dev\/null/,
+  /rm\s+-rf\s+\//,
   />\s*\/dev\/sda/,
   />\s*\/dev\/hda/,
-  /&&\s*dd\s+if=/,
-  /\|\|\s*dd\s+if=/,
-  /;\s*dd\s+if=/,
   /chmod\s+777\s+\//,
   /chown\s+root:root/,
-  /curl.*\|\s*bash/,
-  /wget.*\|\s*bash/,
-  /curl.*\|\s*sh/,
-  /wget.*\|\s*sh/,
-  /:(){:\|:&};:/, // fork bomb
-  /eval\s*\(/,
-  /exec\s+\$/,
+  /:()\{:&};:/,
+  /\beval\s*\(/,
+  /\bexec\s+\$/,
+  /python[3]?\s+-c\s+.*import\s+socket/,
+  /python[3]?\s+-c\s+.*subprocess/,
+  /perl\s+-e\s+.*socket/,
+  /ruby\s+-e\s+.*TCPSocket/,
+];
+
+const DANGEROUS_PIPE_PATTERNS: RegExp[] = [
+  /curl.*\|\s*(bash|sh|zsh|fish)/,
+  /wget.*\|\s*(bash|sh|zsh|fish)/,
 ];
 
 /**
@@ -171,7 +183,7 @@ export interface SecurityConfig {
 export const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
   whitelist: DEFAULT_WHITELIST,
   blacklist: DEFAULT_BLACKLIST,
-  allowUnknownCommands: true, // Warning: setting to true is less secure
+  allowUnknownCommands: true,
   sanitizeUserInput: true,
   maxCommandLength: 10000,
 };
@@ -188,17 +200,21 @@ export class SecurityValidator {
 
   /**
    * Validate a command against security rules
+   * @param command Command name (non-shell) or full command string (shell mode)
+   * @param args Arguments (only used in non-shell mode)
+   * @param shellMode Whether executing via shell
    */
   validateCommand(
     command: string,
-    args: string[] = []
+    args: string[] = [],
+    shellMode: boolean = false
   ): {
     valid: boolean;
     error?: string;
   } {
-    // Check command length
     const fullCommand =
       args.length > 0 ? [command, ...args].join(' ') : command;
+
     if (fullCommand.length > this.config.maxCommandLength) {
       return {
         valid: false,
@@ -206,7 +222,10 @@ export class SecurityValidator {
       };
     }
 
-    // Check blacklist first (always deny)
+    if (shellMode) {
+      return this.validateShellCommand(fullCommand);
+    }
+
     if (this.isBlacklisted(command)) {
       return {
         valid: false,
@@ -214,7 +233,6 @@ export class SecurityValidator {
       };
     }
 
-    // Check whitelist if unknown commands are not allowed
     if (!this.config.allowUnknownCommands && !this.isWhitelisted(command)) {
       return {
         valid: false,
@@ -222,7 +240,6 @@ export class SecurityValidator {
       };
     }
 
-    // Check for dangerous patterns
     const dangerousPattern = this.findDangerousPattern(fullCommand);
     if (dangerousPattern) {
       return {
@@ -231,7 +248,6 @@ export class SecurityValidator {
       };
     }
 
-    // Sanitize arguments if enabled
     if (this.config.sanitizeUserInput) {
       for (let i = 0; i < args.length; i++) {
         if (this.containsShellInjection(args[i])) {
@@ -241,6 +257,42 @@ export class SecurityValidator {
           };
         }
       }
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Validate a shell-mode command
+   */
+  private validateShellCommand(fullCommand: string): {
+    valid: boolean;
+    error?: string;
+  } {
+    for (const pattern of DANGEROUS_PATTERNS) {
+      if (pattern.test(fullCommand)) {
+        return {
+          valid: false,
+          error: `Command contains dangerous pattern: ${pattern.source}`,
+        };
+      }
+    }
+
+    for (const pattern of DANGEROUS_PIPE_PATTERNS) {
+      if (pattern.test(fullCommand)) {
+        return {
+          valid: false,
+          error: `Command contains dangerous pipe pattern: ${pattern.source}`,
+        };
+      }
+    }
+
+    const firstWord = fullCommand.trim().split(/\s+/)[0];
+    if (this.isBlacklisted(firstWord)) {
+      return {
+        valid: false,
+        error: `Command '${firstWord}' is blacklisted for security reasons`,
+      };
     }
 
     return { valid: true };
@@ -271,26 +323,19 @@ export class SecurityValidator {
         return pattern.source;
       }
     }
+    for (const pattern of DANGEROUS_PIPE_PATTERNS) {
+      if (pattern.test(command)) {
+        return pattern.source;
+      }
+    }
     return null;
   }
 
   /**
-   * Check for shell injection patterns
+   * Check for shell injection patterns in individual arguments (non-shell mode)
    */
   private containsShellInjection(input: string): boolean {
-    const injectionPatterns = [
-      /&&/, // Command chaining
-      /\|\|/, // OR chaining
-      /;/, // Command separator
-      /\|/, // Pipe (may be legitimate, but check context)
-      />\s*\w+/, // Output redirection
-      /<\s*\w+/, // Input redirection
-      /\$/, // Variable expansion
-      /`/, // Command substitution
-      /\$\(/, // Command substitution
-      /\\n/, // Newline
-      /\\r/, // Carriage return
-    ];
+    const injectionPatterns = [/;/, /`/, /\$\(/, /\\n/, /\\r/];
 
     for (const pattern of injectionPatterns) {
       if (pattern.test(input)) {
@@ -298,28 +343,6 @@ export class SecurityValidator {
       }
     }
     return false;
-  }
-
-  /**
-   * Sanitize user input
-   */
-  sanitizeInput(input: string): string {
-    // Remove dangerous characters
-    return input.replace(/[;&|`$()<>\\]/g, '').trim();
-  }
-
-  /**
-   * Update security configuration
-   */
-  updateConfig(config: Partial<SecurityConfig>): void {
-    this.config = { ...this.config, ...config };
-  }
-
-  /**
-   * Get current configuration
-   */
-  getConfig(): SecurityConfig {
-    return { ...this.config };
   }
 }
 

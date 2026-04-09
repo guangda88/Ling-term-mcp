@@ -6,7 +6,8 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-// Session type definition
+const MAX_HISTORY_PER_SESSION = 100;
+
 export interface Session {
   id: string;
   name: string;
@@ -14,6 +15,7 @@ export interface Session {
   created_at: string;
   status: 'active' | 'inactive' | 'destroyed';
   environment?: Record<string, string>;
+  command_history?: string[];
 }
 
 // In-memory session cache
@@ -30,12 +32,10 @@ async function initializeStore(): Promise<void> {
     const dataDir = path.dirname(DATA_FILE);
     await fs.mkdir(dataDir, { recursive: true });
 
-    // Load existing sessions
     const data = await fs.readFile(DATA_FILE, 'utf-8');
     const sessionsArray = JSON.parse(data) as Session[];
     sessions = new Map(sessionsArray.map((s) => [s.id, s]));
   } catch (error) {
-    // File doesn't exist yet, start with empty store
     sessions = new Map();
   }
 }
@@ -47,7 +47,8 @@ async function persistSessions(): Promise<void> {
   const sessionsArray = Array.from(sessions.values());
   const dataDir = path.dirname(DATA_FILE);
   await fs.mkdir(dataDir, { recursive: true });
-  await fs.writeFile(DATA_FILE, JSON.stringify(sessionsArray, null, 2));
+  const data = JSON.stringify(sessionsArray, null, 2);
+  await fs.writeFile(DATA_FILE, data, { mode: 0o600 });
 }
 
 /**
@@ -87,6 +88,27 @@ export async function updateSession(
   if (session) {
     const updatedSession = { ...session, ...updates };
     sessions.set(id, updatedSession);
+    await persistSessions();
+  }
+}
+
+/**
+ * Append a command to session history
+ */
+export async function appendCommandHistory(
+  id: string,
+  command: string
+): Promise<void> {
+  await initializeStore();
+  const session = sessions.get(id);
+  if (session) {
+    const history = session.command_history || [];
+    history.push(command);
+    if (history.length > MAX_HISTORY_PER_SESSION) {
+      history.splice(0, history.length - MAX_HISTORY_PER_SESSION);
+    }
+    session.command_history = history;
+    sessions.set(id, session);
     await persistSessions();
   }
 }

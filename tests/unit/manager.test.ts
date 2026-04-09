@@ -1,89 +1,198 @@
 /**
- * Session Manager Tests
+ * Session Store Tests
  */
 
-// Mock uuid to return different values
-let uuidCounter = 0;
-jest.mock('uuid', () => ({
-  v4: jest.fn(() => {
-    const id = `123e4567-e89b-12d3-a456-42661417${String(uuidCounter).padStart(4, '0')}`;
-    uuidCounter++;
-    return id;
-  }),
-}));
+import {
+  saveSession,
+  getSession,
+  getSessions,
+  updateSession,
+  deleteSession,
+  clearSessions,
+} from '../../src/sessions/store';
 
-import { SessionManager } from '../../src/sessions/manager';
-import * as fs from 'fs';
-import * as path from 'path';
-
-// Clean up session storage before each test
-const SESSIONS_FILE = path.join(
-  process.cwd(),
-  '.ling-term-mcp',
-  'sessions.json'
-);
-
-beforeEach(() => {
-  if (fs.existsSync(SESSIONS_FILE)) {
-    fs.unlinkSync(SESSIONS_FILE);
-  }
+beforeEach(async () => {
+  await clearSessions();
 });
 
-describe('SessionManager', () => {
-  let manager: SessionManager;
-
-  beforeEach(() => {
-    manager = new SessionManager();
-  });
-
-  it('should create a new session', async () => {
-    const sessionId = await manager.create({
+describe('Session Store', () => {
+  it('should save and retrieve a session', async () => {
+    const session = {
+      id: 'test-1',
       name: 'test-session',
-    });
+      working_directory: '/tmp',
+      created_at: new Date().toISOString(),
+      status: 'active' as const,
+    };
 
-    expect(sessionId).toBeDefined();
-    expect(sessionId).toMatch(/^[a-f0-9-]+$/);
-  });
+    await saveSession(session);
+    const retrieved = await getSession('test-1');
 
-  it('should retrieve a session', async () => {
-    const sessionId = await manager.create({
-      name: 'test-session',
-    });
-
-    const session = await manager.get(sessionId);
-
-    expect(session).toBeDefined();
-    expect(session?.name).toBe('test-session');
-    expect(session?.status).toBe('active');
+    expect(retrieved).toBeDefined();
+    expect(retrieved?.name).toBe('test-session');
+    expect(retrieved?.status).toBe('active');
   });
 
   it('should list all sessions', async () => {
-    const initialCount = (await manager.list()).length;
+    await saveSession({
+      id: 's-1',
+      name: 'session-1',
+      working_directory: '/tmp',
+      created_at: new Date().toISOString(),
+      status: 'active',
+    });
+    await saveSession({
+      id: 's-2',
+      name: 'session-2',
+      working_directory: '/tmp',
+      created_at: new Date().toISOString(),
+      status: 'active',
+    });
+    await saveSession({
+      id: 's-3',
+      name: 'session-3',
+      working_directory: '/tmp',
+      created_at: new Date().toISOString(),
+      status: 'active',
+    });
 
-    await manager.create({ name: 'session-1' });
-    await manager.create({ name: 'session-2' });
-    await manager.create({ name: 'session-3' });
-
-    const sessions = await manager.list();
-
-    expect(sessions.length).toBe(initialCount + 3);
+    const sessions = await getSessions();
+    expect(sessions.length).toBe(3);
   });
 
   it('should update a session', async () => {
-    const sessionId = await manager.create({ name: 'original-name' });
+    await saveSession({
+      id: 'test-upd',
+      name: 'original-name',
+      working_directory: '/tmp',
+      created_at: new Date().toISOString(),
+      status: 'active',
+    });
 
-    await manager.update(sessionId, { name: 'updated-name' });
+    await updateSession('test-upd', { name: 'updated-name' });
 
-    const session = await manager.get(sessionId);
+    const session = await getSession('test-upd');
     expect(session?.name).toBe('updated-name');
   });
 
-  it('should destroy a session', async () => {
-    const sessionId = await manager.create({ name: 'to-be-destroyed' });
+  it('should delete a session', async () => {
+    await saveSession({
+      id: 'test-del',
+      name: 'to-be-deleted',
+      working_directory: '/tmp',
+      created_at: new Date().toISOString(),
+      status: 'active',
+    });
 
-    await manager.destroy(sessionId);
+    await deleteSession('test-del');
 
-    const session = await manager.get(sessionId);
+    const session = await getSession('test-del');
     expect(session).toBeUndefined();
+  });
+
+  it('should return undefined for non-existent session', async () => {
+    const session = await getSession('nonexistent');
+    expect(session).toBeUndefined();
+  });
+
+  it('should clear all sessions', async () => {
+    await saveSession({
+      id: 's-a',
+      name: 'a',
+      working_directory: '/tmp',
+      created_at: new Date().toISOString(),
+      status: 'active',
+    });
+    await saveSession({
+      id: 's-b',
+      name: 'b',
+      working_directory: '/tmp',
+      created_at: new Date().toISOString(),
+      status: 'active',
+    });
+
+    await clearSessions();
+
+    const sessions = await getSessions();
+    expect(sessions.length).toBe(0);
+  });
+
+  it('should cleanup inactive sessions older than maxAge', async () => {
+    const oldId = 'old-session';
+    const recentId = 'recent-session';
+    const activeId = 'active-session';
+
+    await saveSession({
+      id: oldId,
+      name: 'old',
+      working_directory: '/tmp',
+      created_at: new Date(Date.now() - 7200000).toISOString(),
+      status: 'inactive',
+    });
+    await saveSession({
+      id: recentId,
+      name: 'recent',
+      working_directory: '/tmp',
+      created_at: new Date(Date.now() - 1000).toISOString(),
+      status: 'inactive',
+    });
+    await saveSession({
+      id: activeId,
+      name: 'active',
+      working_directory: '/tmp',
+      created_at: new Date(Date.now() - 7200000).toISOString(),
+      status: 'active',
+    });
+
+    const allSessions = await getSessions();
+    const maxAge = 3600000;
+    let cleaned = 0;
+
+    for (const session of allSessions) {
+      const createdAt = new Date(session.created_at).getTime();
+      const age = Date.now() - createdAt;
+      if (age > maxAge && session.status === 'inactive') {
+        await deleteSession(session.id);
+        cleaned++;
+      }
+    }
+
+    expect(cleaned).toBe(1);
+    expect(await getSession(oldId)).toBeUndefined();
+    expect(await getSession(recentId)).toBeDefined();
+    expect(await getSession(activeId)).toBeDefined();
+  });
+
+  it('should save session with environment', async () => {
+    await saveSession({
+      id: 'env-session',
+      name: 'env-session',
+      working_directory: '/tmp',
+      created_at: new Date().toISOString(),
+      status: 'active',
+      environment: {
+        PATH: process.env.PATH || '',
+        HOME: process.env.HOME || '',
+      },
+    });
+
+    const session = await getSession('env-session');
+    expect(session?.environment).toBeDefined();
+    expect(session?.environment?.PATH).toBeDefined();
+  });
+
+  it('should update session working directory', async () => {
+    await saveSession({
+      id: 'cwd-session',
+      name: 'cwd-session',
+      working_directory: '/tmp',
+      created_at: new Date().toISOString(),
+      status: 'active',
+    });
+
+    await updateSession('cwd-session', { working_directory: '/var' });
+
+    const session = await getSession('cwd-session');
+    expect(session?.working_directory).toBe('/var');
   });
 });

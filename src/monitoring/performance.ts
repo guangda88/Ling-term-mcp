@@ -29,10 +29,7 @@ export interface ExecutionResult {
   error?: string;
 }
 
-/**
- * Performance bucket definitions (ms)
- */
-export const LATENCY_BUCKETS = [10, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
+const MAX_HISTORY_SIZE = 1000;
 
 /**
  * Performance monitor class
@@ -55,6 +52,9 @@ export class PerformanceMonitor {
    */
   recordExecution(result: ExecutionResult): void {
     this.executionHistory.push(result);
+    if (this.executionHistory.length > MAX_HISTORY_SIZE) {
+      this.executionHistory = this.executionHistory.slice(-MAX_HISTORY_SIZE);
+    }
     this.metrics.totalCommandsExecuted++;
     this.recalculateMetrics();
   }
@@ -174,94 +174,6 @@ export class PerformanceMonitor {
     }
 
     this.metrics.commandExecutionTime = commandGroups;
-  }
-
-  /**
-   * Get performance report
-   */
-  getReport(): string {
-    const metrics = this.getMetrics();
-    const lines = [
-      '=== Performance Report ===',
-      `Total Commands Executed: ${metrics.totalCommandsExecuted}`,
-      `Error Rate: ${(metrics.errorRate * 100).toFixed(2)}%`,
-      '',
-      'Execution Time (ms):',
-      `  Average: ${metrics.averageExecutionTime.toFixed(2)}`,
-      `  P50: ${metrics.p50ExecutionTime.toFixed(2)}`,
-      `  P95: ${metrics.p95ExecutionTime.toFixed(2)}`,
-      `  P99: ${metrics.p99ExecutionTime.toFixed(2)}`,
-      '',
-      'Command Breakdown:',
-    ];
-
-    for (const [command, times] of metrics.commandExecutionTime) {
-      const stats = this.getStats(times);
-      lines.push(
-        `  ${command}:`,
-        `    Count: ${times.length}`,
-        `    Avg: ${stats.avg.toFixed(2)}ms`,
-        `    P95: ${stats.p95.toFixed(2)}ms`
-      );
-    }
-
-    lines.push(`\nLast Reset: ${metrics.lastResetTime.toISOString()}`);
-
-    return lines.join('\n');
-  }
-
-  /**
-   * Check if performance is within thresholds
-   */
-  checkThresholds(thresholds: {
-    averageExecutionTime?: number;
-    p95ExecutionTime?: number;
-    p99ExecutionTime?: number;
-    errorRate?: number;
-  }): {
-    passed: boolean;
-    failures: string[];
-  } {
-    const metrics = this.getMetrics();
-    const failures: string[] = [];
-
-    if (
-      thresholds.averageExecutionTime &&
-      metrics.averageExecutionTime > thresholds.averageExecutionTime
-    ) {
-      failures.push(
-        `Average execution time ${metrics.averageExecutionTime.toFixed(2)}ms exceeds threshold ${thresholds.averageExecutionTime}ms`
-      );
-    }
-
-    if (
-      thresholds.p95ExecutionTime &&
-      metrics.p95ExecutionTime > thresholds.p95ExecutionTime
-    ) {
-      failures.push(
-        `P95 execution time ${metrics.p95ExecutionTime.toFixed(2)}ms exceeds threshold ${thresholds.p95ExecutionTime}ms`
-      );
-    }
-
-    if (
-      thresholds.p99ExecutionTime &&
-      metrics.p99ExecutionTime > thresholds.p99ExecutionTime
-    ) {
-      failures.push(
-        `P99 execution time ${metrics.p99ExecutionTime.toFixed(2)}ms exceeds threshold ${thresholds.p99ExecutionTime}ms`
-      );
-    }
-
-    if (thresholds.errorRate && metrics.errorRate > thresholds.errorRate) {
-      failures.push(
-        `Error rate ${(metrics.errorRate * 100).toFixed(2)}% exceeds threshold ${(thresholds.errorRate * 100).toFixed(2)}%`
-      );
-    }
-
-    return {
-      passed: failures.length === 0,
-      failures,
-    };
   }
 }
 

