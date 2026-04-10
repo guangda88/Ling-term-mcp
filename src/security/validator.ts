@@ -166,6 +166,11 @@ const DANGEROUS_PIPE_PATTERNS: RegExp[] = [
   /wget.*\|\s*(bash|sh|zsh|fish)/,
 ];
 
+const ALL_DANGEROUS_PATTERNS: RegExp[] = [
+  ...DANGEROUS_PATTERNS,
+  ...DANGEROUS_PIPE_PATTERNS,
+];
+
 /**
  * Security configuration
  */
@@ -269,22 +274,12 @@ export class SecurityValidator {
     valid: boolean;
     error?: string;
   } {
-    for (const pattern of DANGEROUS_PATTERNS) {
-      if (pattern.test(fullCommand)) {
-        return {
-          valid: false,
-          error: `Command contains dangerous pattern: ${pattern.source}`,
-        };
-      }
-    }
-
-    for (const pattern of DANGEROUS_PIPE_PATTERNS) {
-      if (pattern.test(fullCommand)) {
-        return {
-          valid: false,
-          error: `Command contains dangerous pipe pattern: ${pattern.source}`,
-        };
-      }
+    const pattern = this.findDangerousPattern(fullCommand);
+    if (pattern) {
+      return {
+        valid: false,
+        error: `Command contains dangerous pattern: ${pattern}`,
+      };
     }
 
     const firstWord = fullCommand.trim().split(/\s+/)[0];
@@ -298,51 +293,30 @@ export class SecurityValidator {
     return { valid: true };
   }
 
-  /**
-   * Check if a command is in the whitelist
-   */
+  private isInList(command: string, list: string[]): boolean {
+    const commandName = command.split(' ')[0];
+    return list.includes(commandName);
+  }
+
   private isWhitelisted(command: string): boolean {
-    const commandName = command.split(' ')[0];
-    return this.config.whitelist.includes(commandName);
+    return this.isInList(command, this.config.whitelist);
   }
 
-  /**
-   * Check if a command is in the blacklist
-   */
   private isBlacklisted(command: string): boolean {
-    const commandName = command.split(' ')[0];
-    return this.config.blacklist.includes(commandName);
+    return this.isInList(command, this.config.blacklist);
   }
 
-  /**
-   * Find dangerous patterns in command
-   */
   private findDangerousPattern(command: string): string | null {
-    for (const pattern of DANGEROUS_PATTERNS) {
-      if (pattern.test(command)) {
-        return pattern.source;
-      }
-    }
-    for (const pattern of DANGEROUS_PIPE_PATTERNS) {
-      if (pattern.test(command)) {
-        return pattern.source;
-      }
+    for (const pattern of ALL_DANGEROUS_PATTERNS) {
+      if (pattern.test(command)) return pattern.source;
     }
     return null;
   }
 
-  /**
-   * Check for shell injection patterns in individual arguments (non-shell mode)
-   */
-  private containsShellInjection(input: string): boolean {
-    const injectionPatterns = [/;/, /`/, /\$\(/, /\\n/, /\\r/];
+  private static readonly INJECTION_PATTERNS = [/;/, /`/, /\$\(/, /\\n/, /\\r/];
 
-    for (const pattern of injectionPatterns) {
-      if (pattern.test(input)) {
-        return true;
-      }
-    }
-    return false;
+  private containsShellInjection(input: string): boolean {
+    return SecurityValidator.INJECTION_PATTERNS.some((p) => p.test(input));
   }
 }
 

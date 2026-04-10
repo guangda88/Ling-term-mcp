@@ -20,16 +20,8 @@ import {
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
-const BLOCKED_ENV_PATTERNS = [
-  /SECRET/i,
-  /PASSWORD/i,
-  /TOKEN/i,
-  /API_KEY/i,
-  /PRIVATE_KEY/i,
-  /AUTH/i,
-  /CREDENTIAL/i,
-  /ACCESS_KEY/i,
-];
+const BLOCKED_ENV_RE =
+  /SECRET|PASSWORD|TOKEN|API_KEY|PRIVATE_KEY|AUTH|CREDENTIAL|ACCESS_KEY/i;
 
 const DEFAULT_TIMEOUT = 60000;
 const MAX_TIMEOUT = 600000;
@@ -41,7 +33,7 @@ function buildSafeEnv(sessionEnv?: Record<string, string>): NodeJS.ProcessEnv {
   const safeEnv: NodeJS.ProcessEnv = { TERM: 'xterm-256color' };
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined) continue;
-    const isBlocked = BLOCKED_ENV_PATTERNS.some((pattern) => pattern.test(key));
+    const isBlocked = BLOCKED_ENV_RE.test(key);
     if (!isBlocked) {
       safeEnv[key] = value;
     }
@@ -213,12 +205,7 @@ export const executeCommand = {
       }
 
       if (session_id) {
-        const fullCmd =
-          shell || cmdArgs.length > 0
-            ? shell
-              ? command
-              : [command, ...cmdArgs].join(' ')
-            : command;
+        const fullCmd = shell ? command : [command, ...cmdArgs].join(' ');
         appendCommandHistory(session_id, fullCmd).catch(() => {});
       }
 
@@ -236,20 +223,16 @@ export const executeCommand = {
         stderr?: string;
         stdout?: string;
       };
-      const errorMessage = err.message || 'Command execution failed';
-      const errorOutput = err.stderr || '';
-      const stdoutOutput = err.stdout || '';
-      const combinedOutput = [stdoutOutput, errorOutput, errorMessage]
+      const combined = [
+        err.stdout,
+        err.stderr,
+        err.message || 'Command execution failed',
+      ]
         .filter(Boolean)
         .join('\n');
 
       return {
-        content: [
-          {
-            type: 'text',
-            text: truncateOutput(combinedOutput),
-          },
-        ],
+        content: [{ type: 'text', text: truncateOutput(combined) }],
         isError: true,
       };
     }

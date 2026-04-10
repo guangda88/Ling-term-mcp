@@ -115,7 +115,7 @@ describe('SecurityValidator', () => {
         true
       );
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('dangerous pipe pattern');
+      expect(result.error).toContain('dangerous pattern');
     });
 
     it('should reject wget pipe to sh in shell mode', () => {
@@ -125,7 +125,7 @@ describe('SecurityValidator', () => {
         true
       );
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('dangerous pipe pattern');
+      expect(result.error).toContain('dangerous pattern');
     });
 
     it('should reject blacklisted first word in shell mode', () => {

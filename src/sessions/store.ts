@@ -20,22 +20,23 @@ export interface Session {
 
 // In-memory session cache
 let sessions: Map<string, Session> = new Map();
+let initialized = false;
 
-// Data file path
-const DATA_FILE = path.join(process.cwd(), '.ling-term-mcp', 'sessions.json');
+const DATA_DIR = path.join(process.cwd(), '.ling-term-mcp');
+const DATA_FILE = path.join(DATA_DIR, 'sessions.json');
 
 /**
- * Initialize session store
+ * Initialize session store (lazy, runs once)
  */
 async function initializeStore(): Promise<void> {
+  if (initialized) return;
+  initialized = true;
   try {
-    const dataDir = path.dirname(DATA_FILE);
-    await fs.mkdir(dataDir, { recursive: true });
-
+    await fs.mkdir(DATA_DIR, { recursive: true });
     const data = await fs.readFile(DATA_FILE, 'utf-8');
     const sessionsArray = JSON.parse(data) as Session[];
     sessions = new Map(sessionsArray.map((s) => [s.id, s]));
-  } catch (error) {
+  } catch {
     sessions = new Map();
   }
 }
@@ -44,10 +45,8 @@ async function initializeStore(): Promise<void> {
  * Save sessions to disk
  */
 async function persistSessions(): Promise<void> {
-  const sessionsArray = Array.from(sessions.values());
-  const dataDir = path.dirname(DATA_FILE);
-  await fs.mkdir(dataDir, { recursive: true });
-  const data = JSON.stringify(sessionsArray, null, 2);
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  const data = JSON.stringify(Array.from(sessions.values()), null, 2);
   await fs.writeFile(DATA_FILE, data, { mode: 0o600 });
 }
 
