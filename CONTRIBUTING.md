@@ -102,7 +102,6 @@ npm run format
 src/
 ├── index.ts          # MCP Server entry point
 ├── cli.ts            # CLI entry point
-├── types.ts          # TypeScript type definitions
 ├── tools/            # MCP tools
 │   ├── execute_command.ts
 │   ├── sync_terminal.ts
@@ -110,9 +109,11 @@ src/
 │   ├── create_session.ts
 │   └── destroy_session.ts
 ├── sessions/         # Session management
-│   ├── manager.ts
 │   └── store.ts
-└── utils/            # Utility functions
+├── security/         # Security validation
+│   └── validator.ts
+└── monitoring/       # Performance monitoring
+    └── performance.ts
 ```
 
 ## Testing

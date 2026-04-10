@@ -3,6 +3,8 @@
  * Creates a new terminal session
  */
 
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { saveSession } from '../sessions/store.js';
 
@@ -34,19 +36,33 @@ export const createSession = {
       working_directory?: string;
     };
 
-    // Generate session ID
+    const resolvedDir = working_directory || process.cwd();
+
+    try {
+      const stat = await fs.stat(resolvedDir);
+      if (!stat.isDirectory()) {
+        throw new Error(`Path is not a directory: ${resolvedDir}`);
+      }
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes('Path is not a directory')
+      ) {
+        throw error;
+      }
+      throw new Error(`Working directory does not exist: ${resolvedDir}`);
+    }
+
     const sessionId = uuidv4();
 
-    // Create session
     const session = {
       id: sessionId,
       name: name || `session-${sessionId.slice(0, 8)}`,
-      working_directory: working_directory || process.cwd(),
+      working_directory: path.resolve(resolvedDir),
       created_at: new Date().toISOString(),
       status: 'active' as const,
     };
 
-    // Save session
     await saveSession(session);
 
     return {

@@ -17,8 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **destroy_session** tool - Terminate active sessions
 
 #### Security
-- Command whitelist with 100+ safe commands
-- Command blacklist with 50+ dangerous commands (rm, sudo, chmod, etc.)
+- Command whitelist with 74 safe commands
+- Command blacklist with 41 dangerous commands (rm, sudo, chmod, etc.)
 - Dangerous pattern detection:
   - Shell injection (`; | & $ ( ) <> \`)
   - Privilege escalation (`chmod 777 /`, `&& rm -rf`)
@@ -43,13 +43,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Latency buckets: [10, 50, 100, 250, 500, 1000, 2500, 5000, 10000] ms
 
 #### Testing
-- **Unit tests**: 46 tests, all passing
-  - Security validation: 18 tests
-  - Performance monitoring: 15 tests
-  - Command execution: 5 tests
-  - Terminal synchronization: 3 tests
-  - Session management: 5 tests
-- Code coverage: 81.05% statements, 78.94% functions, 80.85% lines
+- **Unit tests**: 74 tests, all passing
+  - Security validation: 16 tests
+  - Performance monitoring: 12 tests
+  - Command execution: 14 tests
+  - Terminal synchronization: 7 tests
+  - Session store: 10 tests
+  - Session management: 6 tests
+  - List sessions: 5 tests
+  - Destroy session: 4 tests
+- Code coverage: 97%+ statements, 100% functions
 - E2E test framework (deferred - needs MCP protocol rewrite)
 - Stress testing framework (deferred - needs MCP protocol rewrite)
 
@@ -110,6 +113,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## [Unreleased]
+
+### Changed (Audit Fixes 2026-04-08)
+- Deleted `src/types.ts` — dead code, never imported by any source file
+- Deleted `src/sessions/manager.ts` — dead code, replaced by direct store usage
+- Removed dead exports: `LATENCY_BUCKETS`, `getReport()`, `checkThresholds()` from performance monitor
+- Removed dead exports: `sanitizeInput()`, `updateConfig()`, `getConfig()` from security validator
+- Migrated session manager tests to test store functions directly
+- Fixed CONTRIBUTING.md project structure (removed `utils/`, `manager.ts`, `types.ts` references)
+- Fixed README.md hallucinations: test count (46→74), coverage (89%→97%+), phantom `src/utils/` directory
+- Fixed README.md best config values to match optimization_results.json
+- Removed phantom `npm run apply-optimized-config` reference from README
+- Removed `test:integration` script from package.json (directory does not exist)
+- Fixed CHANGELOG command counts: whitelist 100+→74, blacklist 50+→41
 
 ### Planned for 1.1.0
 - [ ] Complete MCP protocol implementation
