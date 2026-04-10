@@ -5,11 +5,63 @@ All notable changes to Ling-term-mcp (灵犀) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-04-10
+
+### Added
+
+#### Dual-Mode Execution
+
+- **Shell mode** (`shell: true`) — execute commands via `/bin/sh -c`, enabling pipes (`|`), chaining (`&&`, `||`), redirects, and shell builtins (`cd`, `export`, `source`)
+- **Non-shell mode** (default) — direct binary execution via `execFile` for safety
+- Shell-specific security validation path (`validateShellCommand`)
+
+#### Session State Tracking
+
+- Automatic `cd` target parsing — updates session `working_directory` after shell commands
+- Automatic `export` parsing — captures env vars into session `environment`
+- Per-session command history (max 100 entries, persisted to disk)
+
+#### Security Improvements
+
+- Relaxed `containsShellInjection()` — only blocks `;`, backticks, `$()`, `\n`, `\r` (removed over-aggressive `&&`, `||`, `|`, `$` blocks)
+- New `DANGEROUS_PIPE_PATTERNS` — detects `curl|bash`, `wget|sh` injection patterns
+- `bash`, `sh`, `zsh`, `fish`, `curl`, `wget` moved from blacklist to whitelist
+- Unified `ALL_DANGEROUS_PATTERNS` array for consistent pattern matching
+
+#### Reliability
+
+- Env variable blacklist approach (filters SECRET/PASSWORD/TOKEN/API_KEY etc.) — passes ~50+ vars instead of old 9-var whitelist
+- Output truncation at 10,000 chars (head 5K + tail 5K) to prevent memory issues
+- Configurable `timeout` parameter (1s–600s, default 60s)
+- Lazy session store initialization — reads disk once, skips on subsequent calls
+
+### Changed
+
+- Simplified `isWhitelisted`/`isBlacklisted` into unified `isInList(list)` method
+- `containsShellInjection` patterns extracted to static class constant
+- Error handler in `execute_command` compacted (12→7 lines)
+- `BLOCKED_ENV_PATTERNS` array merged into single regex `BLOCKED_ENV_RE`
+- Nested ternary for `fullCmd` flattened to simple conditional
+
+### Removed
+
+- `src/sessions/manager.ts` — dead code
+- `src/types.ts` — dead code
+- `test:integration` script from package.json
+
+### Testing
+
+- **95 tests** (87 unit + 8 integration), all passing
+- **98% statement coverage**, 89% branches, 98% functions
+- New integration test suite: full session lifecycle, shell mode, concurrent sessions, env isolation
+- 0 lint errors, clean TypeScript build
+
 ## [1.0.0] - 2026-03-24
 
 ### Added
 
 #### Core Features
+
 - **execute_command** tool - Execute terminal commands with security validation
 - **sync_terminal** tool - Synchronize terminal state (directory, environment)
 - **list_sessions** tool - List all active terminal sessions
@@ -17,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **destroy_session** tool - Terminate active sessions
 
 #### Security
+
 - Command whitelist with 74 safe commands
 - Command blacklist with 41 dangerous commands (rm, sudo, chmod, etc.)
 - Dangerous pattern detection:
@@ -31,6 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `maxCommandLength`: number
 
 #### Performance Monitoring
+
 - Execution result tracking with timestamps
 - Metrics calculation:
   - Average execution time
@@ -43,6 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Latency buckets: [10, 50, 100, 250, 500, 1000, 2500, 5000, 10000] ms
 
 #### Testing
+
 - **Unit tests**: 74 tests, all passing
   - Security validation: 16 tests
   - Performance monitoring: 12 tests
@@ -57,6 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stress testing framework (deferred - needs MCP protocol rewrite)
 
 #### Optimization
+
 - **LingMinOpt integration** for parameter optimization
 - Search space: 4096 possible configurations
 - Optimization completed in 47.05 seconds (23 experiments)
@@ -78,6 +134,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Error rate: 0.3% (target: <1%) ✅
 
 #### Documentation
+
 - Comprehensive README with quick start guide
 - API documentation (`docs/API.md`)
 - User guide (`docs/USER_GUIDE.md`)
@@ -88,6 +145,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG
 
 #### Package
+
 - Optimized npm package: 23.8 kB (52 files)
 - TypeScript definitions included (.d.ts)
 - Source maps included (.js.map)
@@ -96,16 +154,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Binary CLI: `ling-term-mcp`
 
 ### Changed
+
 - Session management to support multiple concurrent sessions
 - Command execution to integrate security validation
 - Performance monitoring to track all tool executions
 
 ### Security
+
 - All commands validated against whitelist/blacklist before execution
 - Pattern matching prevents shell injection attacks
 - Input sanitization removes dangerous characters
 
 ### Performance
+
 - Response time optimized to <100ms average
 - Memory usage optimized to <100MB
 - Throughput optimized to >100 req/s
@@ -113,29 +174,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## [Unreleased]
-
-### Changed (Audit Fixes 2026-04-08)
-- Deleted `src/types.ts` — dead code, never imported by any source file
-- Deleted `src/sessions/manager.ts` — dead code, replaced by direct store usage
-- Removed dead exports: `LATENCY_BUCKETS`, `getReport()`, `checkThresholds()` from performance monitor
-- Removed dead exports: `sanitizeInput()`, `updateConfig()`, `getConfig()` from security validator
-- Migrated session manager tests to test store functions directly
-- Fixed CONTRIBUTING.md project structure (removed `utils/`, `manager.ts`, `types.ts` references)
-- Fixed README.md hallucinations: test count (46→74), coverage (89%→97%+), phantom `src/utils/` directory
-- Fixed README.md best config values to match optimization_results.json
-- Removed phantom `npm run apply-optimized-config` reference from README
-- Removed `test:integration` script from package.json (directory does not exist)
-- Fixed CHANGELOG command counts: whitelist 100+→74, blacklist 50+→41
-
-### Planned for 1.1.0
-- [ ] Complete MCP protocol implementation
-- [ ] E2E tests for MCP protocol
-- [ ] Stress testing for MCP protocol
-- [ ] Add more AI assistant integrations (Copilot, iFlow)
-- [ ] Session persistence across restarts
-- [ ] Command history and replay
-- [ ] Terminal output streaming
-- [ ] Interactive terminal mode
 
 ---
 

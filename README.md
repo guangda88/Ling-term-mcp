@@ -84,13 +84,13 @@ npm start          # 生产模式
 
 ### 1. execute_command — 执行终端命令
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `command` | string | 是 | 命令名称（非 shell）或完整命令字符串（shell 模式） |
-| `args` | string[] | 否 | 命令参数（仅非 shell 模式使用） |
-| `session_id` | string | 否 | 会话 ID，绑定工作目录和环境 |
-| `shell` | boolean | 否 | `true` 使用 `/bin/sh -c` 执行，支持管道、`&&`、`cd`、`export` 等 |
-| `timeout` | number | 否 | 超时毫秒数，默认 60000，最大 600000 |
+| 参数         | 类型     | 必填 | 说明                                                             |
+| ------------ | -------- | ---- | ---------------------------------------------------------------- |
+| `command`    | string   | 是   | 命令名称（非 shell）或完整命令字符串（shell 模式）               |
+| `args`       | string[] | 否   | 命令参数（仅非 shell 模式使用）                                  |
+| `session_id` | string   | 否   | 会话 ID，绑定工作目录和环境                                      |
+| `shell`      | boolean  | 否   | `true` 使用 `/bin/sh -c` 执行，支持管道、`&&`、`cd`、`export` 等 |
+| `timeout`    | number   | 否   | 超时毫秒数，默认 60000，最大 600000                              |
 
 **非 shell 模式**（默认）：使用 `execFile`，参数独立传递，无 shell 解析风险：
 
@@ -116,16 +116,16 @@ Shell 模式下，`cd` 会自动更新会话工作目录，`export` 会更新会
 
 ### 2. create_session — 创建会话
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `name` | string | 否 | 会话名称 |
-| `working_directory` | string | 否 | 工作目录，默认 `process.cwd()` |
+| 参数                | 类型   | 必填 | 说明                           |
+| ------------------- | ------ | ---- | ------------------------------ |
+| `name`              | string | 否   | 会话名称                       |
+| `working_directory` | string | 否   | 工作目录，默认 `process.cwd()` |
 
 ### 3. destroy_session — 销毁会话
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `session_id` | string | 是 | 要销毁的会话 ID |
+| 参数         | 类型   | 必填 | 说明            |
+| ------------ | ------ | ---- | --------------- |
+| `session_id` | string | 是   | 要销毁的会话 ID |
 
 ### 4. list_sessions — 列出会话
 
@@ -133,9 +133,9 @@ Shell 模式下，`cd` 会自动更新会话工作目录，`export` 会更新会
 
 ### 5. sync_terminal — 同步终端状态
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `session_id` | string | 是 | 会话 ID |
+| 参数         | 类型   | 必填 | 说明    |
+| ------------ | ------ | ---- | ------- |
+| `session_id` | string | 是   | 会话 ID |
 
 返回：工作目录、会话环境变量、命令历史、平台信息、时间戳。
 
@@ -177,15 +177,15 @@ Ling-term-mcp/
 
 ### 安全架构
 
-| 层级 | 机制 | 说明 |
-|------|------|------|
-| 命令长度 | `maxCommandLength: 10000` | 超长命令直接拒绝 |
-| 黑名单 | rm, sudo, kill, dd, shutdown... | 始终生效 |
-| 白名单 | ls, git, npm, node, python... | `allowUnknownCommands: false` 时启用 |
-| 危险模式 | `rm -rf /`, fork bomb, curl|bash... | 正则检测 |
-| Shell 注入 | `;`, 反引号, `$(...)` | 非 shell 模式参数检测 |
-| 环境过滤 | SECRET/TOKEN/PASSWORD 关键字 | 阻止敏感变量传递给子进程 |
-| 输出截断 | 10000 字符 | 防止内存溢出 |
+| 层级       | 机制                            | 说明                                 |
+| ---------- | ------------------------------- | ------------------------------------ | -------- |
+| 命令长度   | `maxCommandLength: 10000`       | 超长命令直接拒绝                     |
+| 黑名单     | rm, sudo, kill, dd, shutdown... | 始终生效                             |
+| 白名单     | ls, git, npm, node, python...   | `allowUnknownCommands: false` 时启用 |
+| 危险模式   | `rm -rf /`, fork bomb, curl     | bash...                              | 正则检测 |
+| Shell 注入 | `;`, 反引号, `$(...)`           | 非 shell 模式参数检测                |
+| 环境过滤   | SECRET/TOKEN/PASSWORD 关键字    | 阻止敏感变量传递给子进程             |
+| 输出截断   | 10000 字符                      | 防止内存溢出                         |
 
 ### 双模式安全策略
 
@@ -212,12 +212,12 @@ npm run test:e2e      # E2E 测试（Node.js test runner）
 npm run test:stress   # 压力测试
 ```
 
-| 指标 | 覆盖率 |
-|------|--------|
-| Statements | 98% |
-| Branches | 89% |
-| Functions | 98% |
-| Lines | 98% |
+| 指标       | 覆盖率 |
+| ---------- | ------ |
+| Statements | 98%    |
+| Branches   | 89%    |
+| Functions  | 98%    |
+| Lines      | 98%    |
 
 ---
 
@@ -243,13 +243,13 @@ npm run clean        # 清理构建产物
 
 ## 技术栈
 
-| 依赖 | 版本 | 用途 |
-|------|------|------|
-| TypeScript | 5.4+ | 类型安全 |
-| Node.js | >=18.0 | 运行时 |
+| 依赖                      | 版本    | 用途     |
+| ------------------------- | ------- | -------- |
+| TypeScript                | 5.4+    | 类型安全 |
+| Node.js                   | >=18.0  | 运行时   |
 | @modelcontextprotocol/sdk | ^1.27.1 | MCP 协议 |
-| Jest | 29 | 测试框架 |
-| ESLint + Prettier | - | 代码质量 |
+| Jest                      | 29      | 测试框架 |
+| ESLint + Prettier         | -       | 代码质量 |
 
 ---
 
@@ -268,5 +268,5 @@ MIT License
 
 **Ling-term-mcp（灵犀）- 心有灵犀一点通，AI 精准操控终端**
 
-**版本**: 1.1.0-dev
+**版本**: 1.1.0
 **基于**: LingMinOpt + LingFlow

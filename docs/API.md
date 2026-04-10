@@ -15,6 +15,7 @@ Executes terminal commands safely.
 **Description**: Execute terminal commands safely
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -38,11 +39,13 @@ Executes terminal commands safely.
 ```
 
 **Example Usage**:
+
 ```
 Execute ls -la command
 ```
 
 **Response**:
+
 ```json
 {
   "content": [
@@ -65,6 +68,7 @@ Synchronizes terminal state (working directory, environment variables).
 **Description**: Synchronize terminal state (working directory, environment)
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -79,11 +83,13 @@ Synchronizes terminal state (working directory, environment variables).
 ```
 
 **Example Usage**:
+
 ```
 Get current terminal state
 ```
 
 **Response**:
+
 ```json
 {
   "content": [
@@ -106,6 +112,7 @@ Lists all active terminal sessions.
 **Description**: List all active terminal sessions
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -114,11 +121,13 @@ Lists all active terminal sessions.
 ```
 
 **Example Usage**:
+
 ```
 List all active sessions
 ```
 
 **Response**:
+
 ```json
 {
   "content": [
@@ -141,6 +150,7 @@ Creates a new terminal session.
 **Description**: Create a new terminal session
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -158,11 +168,13 @@ Creates a new terminal session.
 ```
 
 **Example Usage**:
+
 ```
 Create a session named "dev" in /home/user/projects
 ```
 
 **Response**:
+
 ```json
 {
   "content": [
@@ -185,6 +197,7 @@ Destroys a terminal session.
 **Description**: Destroy a terminal session
 
 **Input Schema**:
+
 ```json
 {
   "type": "object",
@@ -199,11 +212,13 @@ Destroys a terminal session.
 ```
 
 **Example Usage**:
+
 ```
 Destroy session with ID abc-123-def
 ```
 
 **Response**:
+
 ```json
 {
   "content": [
@@ -258,6 +273,6 @@ All tool calls follow the MCP error response format:
 
 ## Version
 
-Current version: **1.0.0**
+Current version: **1.1.0**
 
-Release date: **2026-03-24**
+Release date: **2026-04-10**

@@ -44,7 +44,7 @@ npm link
 ling-term-mcp --version
 ```
 
-Expected output: `1.0.0`
+Expected output: `1.1.0`
 
 ### 2. Start the Server
 
@@ -168,6 +168,7 @@ Create a `.ling-term-mcp.json` file in your home directory:
 **Problem**: `command not found: ling-term-mcp`
 
 **Solution**: Make sure you've installed the package globally or linked it:
+
 ```bash
 npm link
 ```
@@ -176,7 +177,8 @@ npm link
 
 **Problem**: Tool returns error messages
 
-**Solution**: 
+**Solution**:
+
 1. Check if the command exists on your system
 2. Verify you have the necessary permissions
 3. Check the error message for specific details
@@ -185,7 +187,8 @@ npm link
 
 **Problem**: "Session not found: xxx-xxx-xxx"
 
-**Solution**: 
+**Solution**:
+
 1. Use `list_sessions` to see available sessions
 2. Create a new session if needed
 
@@ -193,7 +196,8 @@ npm link
 
 **Problem**: "Permission denied" when executing commands
 
-**Solution**: 
+**Solution**:
+
 1. Check file permissions
 2. Run the server with appropriate user privileges
 3. Avoid commands requiring `sudo`
@@ -203,6 +207,7 @@ npm link
 **Problem**: AI assistant can't connect to the MCP server
 
 **Solution**:
+
 1. Verify the server is running
 2. Check the command path in the configuration
 3. Restart the AI assistant
