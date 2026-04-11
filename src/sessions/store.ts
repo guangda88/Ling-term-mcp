@@ -5,8 +5,16 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import {
+  DecisionRecord,
+  BehavioralViolation,
+  SessionSnapshot,
+} from '../audit/types.js';
+import { checkBehavioralContracts } from '../audit/contracts.js';
+import { generateSnapshot } from '../audit/snapshot.js';
 
 const MAX_HISTORY_PER_SESSION = 100;
+const MAX_DECISIONS_PER_SESSION = 200;
 
 export interface Session {
   id: string;
@@ -16,9 +24,11 @@ export interface Session {
   status: 'active' | 'inactive' | 'destroyed';
   environment?: Record<string, string>;
   command_history?: string[];
+  decision_log?: DecisionRecord[];
+  behavioral_violations?: BehavioralViolation[];
+  snapshot?: SessionSnapshot;
 }
 
-// In-memory session cache
 let sessions: Map<string, Session> = new Map();
 let initialized = false;
 
@@ -113,6 +123,60 @@ export async function appendCommandHistory(
 }
 
 /**
+ * Append a decision record and check behavioral contracts
+ */
+export async function appendDecisionRecord(
+  id: string,
+  record: DecisionRecord
+): Promise<BehavioralViolation[]> {
+  await initializeStore();
+  const session = sessions.get(id);
+  if (!session) return [];
+
+  const log = session.decision_log || [];
+  log.push(record);
+  if (log.length > MAX_DECISIONS_PER_SESSION) {
+    log.splice(0, log.length - MAX_DECISIONS_PER_SESSION);
+  }
+  session.decision_log = log;
+
+  const violations = checkBehavioralContracts(record, log.slice(0, -1));
+  if (violations.length > 0) {
+    const existing = session.behavioral_violations || [];
+    session.behavioral_violations = [...existing, ...violations];
+  }
+
+  sessions.set(id, session);
+  await persistSessions();
+  return violations;
+}
+
+/**
+ * Generate and store session snapshot, then mark session destroyed
+ */
+export async function finalizeSession(
+  id: string
+): Promise<SessionSnapshot | null> {
+  await initializeStore();
+  const session = sessions.get(id);
+  if (!session) return null;
+
+  const snapshot = generateSnapshot(
+    session.id,
+    session.name,
+    session.created_at,
+    session.decision_log || [],
+    session.behavioral_violations || []
+  );
+
+  session.snapshot = snapshot;
+  session.status = 'destroyed';
+  sessions.set(id, session);
+  await persistSessions();
+  return snapshot;
+}
+
+/**
  * Delete a session
  */
 export async function deleteSession(id: string): Promise<void> {
@@ -128,4 +192,3 @@ export async function clearSessions(): Promise<void> {
   sessions = new Map();
   await persistSessions();
 }
-// test

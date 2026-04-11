@@ -15,7 +15,9 @@ import {
   getSession,
   updateSession,
   appendCommandHistory,
+  appendDecisionRecord,
 } from '../sessions/store.js';
+import { hashOutput } from '../audit/snapshot.js';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -110,6 +112,15 @@ export const executeCommand = {
           type: 'number',
           description: 'Timeout in milliseconds (default: 60000, max: 600000).',
         },
+        reasoning: {
+          type: 'string',
+          description:
+            'Why this command is being executed (decision provenance).',
+        },
+        expected_outcome: {
+          type: 'string',
+          description: 'What you expect this command to produce or return.',
+        },
       },
       required: ['command'],
     },
@@ -122,12 +133,16 @@ export const executeCommand = {
       session_id,
       shell = false,
       timeout,
+      reasoning = '',
+      expected_outcome = '',
     } = args as {
       command: string;
       args?: string[];
       session_id?: string;
       shell?: boolean;
       timeout?: number;
+      reasoning?: string;
+      expected_outcome?: string;
     };
 
     if (!command || typeof command !== 'string') {
@@ -207,6 +222,17 @@ export const executeCommand = {
       if (session_id) {
         const fullCmd = shell ? command : [command, ...cmdArgs].join(' ');
         appendCommandHistory(session_id, fullCmd).catch(() => {});
+
+        const outputHash = hashOutput(rawOutput);
+        appendDecisionRecord(session_id, {
+          timestamp: new Date().toISOString(),
+          command: fullCmd,
+          reasoning,
+          expected_outcome,
+          actual_outcome_hash: outputHash,
+          success: true,
+          session_id,
+        }).catch(() => {});
       }
 
       return {
@@ -230,6 +256,19 @@ export const executeCommand = {
       ]
         .filter(Boolean)
         .join('\n');
+
+      if (session_id) {
+        const fullCmd = shell ? command : [command, ...cmdArgs].join(' ');
+        appendDecisionRecord(session_id, {
+          timestamp: new Date().toISOString(),
+          command: fullCmd,
+          reasoning,
+          expected_outcome,
+          actual_outcome_hash: hashOutput(combined),
+          success: false,
+          session_id,
+        }).catch(() => {});
+      }
 
       return {
         content: [{ type: 'text', text: truncateOutput(combined) }],
