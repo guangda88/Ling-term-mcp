@@ -3,11 +3,11 @@
  * Produces an end-of-session behavioral summary
  */
 
-import {
+import type {
   DecisionRecord,
   SessionSnapshot,
   BehavioralViolation,
-} from './types.js';
+} from '@ling/protocol';
 import * as crypto from 'crypto';
 
 const NETWORK_RE = /\b(curl|wget|nc|netcat|telnet|ssh|scp|rsync)\b/;

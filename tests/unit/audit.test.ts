@@ -5,7 +5,7 @@
 
 import { checkBehavioralContracts } from '../../src/audit/contracts';
 import { generateSnapshot, hashOutput } from '../../src/audit/snapshot';
-import { DecisionRecord } from '../../src/audit/types';
+import type { DecisionRecord } from '@ling/protocol';
 
 function makeDecision(overrides: Partial<DecisionRecord> = {}): DecisionRecord {
   return {
@@ -146,6 +146,7 @@ describe('Session Snapshot', () => {
         rule: 'network-after-sensitive-read',
         message: 'test violation',
         timestamp: new Date().toISOString(),
+        severity: 'high' as const,
         details: {},
       },
     ];

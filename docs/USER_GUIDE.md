@@ -138,6 +138,47 @@ The AI assistant will use the `sync_terminal` tool.
 
 ---
 
+## Audit and Decision Tracking
+
+### Decision Provenance
+
+Ling-term-mcp automatically tracks all command decisions with:
+
+- **Decision Records**: Each command execution is logged with reasoning, expected outcomes, and actual results
+- **Source Traces**: Tracks the origin and confidence level of each decision
+- **Behavioral Violations**: Detects dangerous patterns like reading sensitive files followed by network commands
+
+### Behavioral Contracts
+
+The system enforces behavioral rules to prevent malicious patterns:
+
+- **Network After Sensitive Read**: Warns if network commands follow reading sensitive files within 5 minutes
+- **Rapid Command Burst**: Alerts when too many commands are executed in a short time window
+- **Permission Change After Write**: Flags suspicious permission modifications
+
+### Session Snapshots
+
+When a session is destroyed, a comprehensive snapshot is generated including:
+
+- Commands executed and their outcomes
+- Files read and written
+- Network commands issued
+- Behavioral violations detected
+- Duration and activity statistics
+
+### Metacognitive Audits
+
+The system evaluates AI decision-making quality:
+
+- **Reasoning Specificity**: Measures how detailed and specific reasoning is
+- **Reasoning Consistency**: Tracks consistency across decisions
+- **Outcome Alignment**: Compares expected vs actual outcomes
+- **Temporal Variation**: Monitors reasoning pattern changes over time
+
+Audit data is stored in `.ling-term-mcp/sessions.json` in the working directory.
+
+---
+
 ## Configuration
 
 ### Environment Variables

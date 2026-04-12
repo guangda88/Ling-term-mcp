@@ -5,11 +5,11 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import {
+import type {
   DecisionRecord,
   BehavioralViolation,
   SessionSnapshot,
-} from '../audit/types.js';
+} from '@ling/protocol';
 import { checkBehavioralContracts } from '../audit/contracts.js';
 import { generateSnapshot } from '../audit/snapshot.js';
 
