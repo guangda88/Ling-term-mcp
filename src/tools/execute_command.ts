@@ -283,7 +283,11 @@ export const executeCommand = {
         message?: string;
         stderr?: string;
         stdout?: string;
+        code?: string;
+        killed?: boolean;
+        signal?: string;
       };
+
       const combined = [
         err.stdout,
         err.stderr,
@@ -291,6 +295,14 @@ export const executeCommand = {
       ]
         .filter(Boolean)
         .join('\n');
+
+      const errorCategory = err.killed
+        ? 'timeout'
+        : err.code === 'ENOENT'
+          ? 'not_found'
+          : err.signal
+            ? 'signal'
+            : 'execution';
 
       if (session_id) {
         const fullCmd = shell ? command : [command, ...cmdArgs].join(' ');
@@ -315,8 +327,24 @@ export const executeCommand = {
         }).catch(() => {});
       }
 
+      const errorMeta = JSON.stringify({
+        category: errorCategory,
+        retryable: errorCategory === 'timeout' || errorCategory === 'execution',
+        killed: err.killed ?? false,
+        signal: err.signal ?? null,
+      });
+
       return {
-        content: [{ type: 'text', text: truncateOutput(combined) }],
+        content: [
+          {
+            type: 'text',
+            text: truncateOutput(combined),
+          },
+          {
+            type: 'text',
+            text: `--- error_meta ---\n${errorMeta}`,
+          },
+        ],
         isError: true,
       };
     }
