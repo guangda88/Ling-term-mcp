@@ -22,6 +22,7 @@ export interface Session {
   working_directory: string;
   created_at: string;
   status: 'active' | 'inactive' | 'destroyed';
+  owner?: string;
   environment?: Record<string, string>;
   command_history?: string[];
   decision_log?: DecisionRecord[];

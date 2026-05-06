@@ -270,4 +270,128 @@ describe('execute_command', () => {
 
     expect(result.content[0].text).toContain('from-session');
   });
+
+  describe('caller identity verification', () => {
+    it('should accept valid caller identity', async () => {
+      const result = await executeCommand.handler({
+        command: 'echo',
+        args: ['verified'],
+        caller: 'lingxi',
+      });
+      expect(result.content[0].text).toContain('verified');
+      expect(result.isError).toBeUndefined();
+    });
+
+    it('should reject unknown caller identity', async () => {
+      await expect(
+        executeCommand.handler({
+          command: 'echo',
+          args: ['should fail'],
+          caller: 'unknown_agent',
+        })
+      ).rejects.toThrow("Unknown caller: 'unknown_agent'");
+    });
+
+    it('should reject empty string caller', async () => {
+      await expect(
+        executeCommand.handler({
+          command: 'echo',
+          args: ['should fail'],
+          caller: '',
+        })
+      ).rejects.toThrow('Unknown caller');
+    });
+
+    it('should allow execution without caller (backward compatible)', async () => {
+      const result = await executeCommand.handler({
+        command: 'echo',
+        args: ['no caller'],
+      });
+      expect(result.content[0].text).toContain('no caller');
+      expect(result.isError).toBeUndefined();
+    });
+
+    it('should include caller in decision record source_trace', async () => {
+      await saveSession({
+        id: 'caller-trace-session',
+        name: 'test',
+        working_directory: '/tmp',
+        created_at: new Date().toISOString(),
+        status: 'active',
+      });
+
+      await executeCommand.handler({
+        command: 'echo',
+        args: ['traced'],
+        session_id: 'caller-trace-session',
+        caller: 'lingclaude',
+      });
+
+      await new Promise((r) => setTimeout(r, 100));
+
+      const session = await import('../../src/sessions/store').then((m) =>
+        m.getSession('caller-trace-session')
+      );
+      const record = session?.decision_log?.find(
+        (r) => r.command === 'echo traced'
+      );
+      expect(record).toBeDefined();
+      expect(record?.source_trace).toBeDefined();
+      expect(record?.source_trace?.[0]?.origin).toBe('lingclaude');
+      expect(record?.source_trace?.[0]?.type).toBe('verified');
+    });
+
+    it('should not include source_trace when caller is absent', async () => {
+      await saveSession({
+        id: 'no-trace-session',
+        name: 'test',
+        working_directory: '/tmp',
+        created_at: new Date().toISOString(),
+        status: 'active',
+      });
+
+      await executeCommand.handler({
+        command: 'echo',
+        args: ['untraced'],
+        session_id: 'no-trace-session',
+      });
+
+      await new Promise((r) => setTimeout(r, 100));
+
+      const session = await import('../../src/sessions/store').then((m) =>
+        m.getSession('no-trace-session')
+      );
+      const record = session?.decision_log?.find(
+        (r) => r.command === 'echo untraced'
+      );
+      expect(record).toBeDefined();
+      expect(record?.source_trace).toBeUndefined();
+    });
+
+    it('should include source_trace on failed commands too', async () => {
+      await saveSession({
+        id: 'fail-trace-session',
+        name: 'test',
+        working_directory: '/tmp',
+        created_at: new Date().toISOString(),
+        status: 'active',
+      });
+
+      await executeCommand.handler({
+        command: 'nonexistent_cmd_xyz',
+        session_id: 'fail-trace-session',
+        caller: 'lingresearch',
+      });
+
+      await new Promise((r) => setTimeout(r, 100));
+
+      const session = await import('../../src/sessions/store').then((m) =>
+        m.getSession('fail-trace-session')
+      );
+      const record = session?.decision_log?.[0];
+      expect(record).toBeDefined();
+      expect(record?.success).toBe(false);
+      expect(record?.source_trace?.[0]?.origin).toBe('lingresearch');
+    });
+  });
 });

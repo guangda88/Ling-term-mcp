@@ -7,6 +7,8 @@ import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
 import { securityValidator } from '../security/validator.js';
+import { SourceType } from '@ling/protocol';
+import { isKnownMember, getMember } from '../security/identity.js';
 import {
   withPerformanceTracking,
   performanceMonitor,
@@ -117,6 +119,11 @@ export const executeCommand = {
           description:
             'Why this command is being executed (decision provenance).',
         },
+        caller: {
+          type: 'string',
+          description:
+            "Caller identity (e.g. 'lingflow', 'lingclaude'). Validated against the 灵族 member registry. Optional but recommended.",
+        },
         expected_outcome: {
           type: 'string',
           description: 'What you expect this command to produce or return.',
@@ -135,6 +142,7 @@ export const executeCommand = {
       timeout,
       reasoning = '',
       expected_outcome = '',
+      caller,
     } = args as {
       command: string;
       args?: string[];
@@ -143,10 +151,23 @@ export const executeCommand = {
       timeout?: number;
       reasoning?: string;
       expected_outcome?: string;
+      caller?: string;
     };
 
     if (!command || typeof command !== 'string') {
       throw new Error('Command is required and must be a string');
+    }
+
+    if (caller !== undefined) {
+      if (!isKnownMember(caller)) {
+        throw new Error(
+          `Unknown caller: '${caller}' is not a registered 灵族 member`
+        );
+      }
+    } else {
+      console.error(
+        `[identity] Warning: execute_command called without caller identity for: ${command}`
+      );
     }
 
     const effectiveTimeout = Math.min(
@@ -224,6 +245,19 @@ export const executeCommand = {
         appendCommandHistory(session_id, fullCmd).catch(() => {});
 
         const outputHash = hashOutput(rawOutput);
+        const sourceTrace = caller
+          ? [
+              {
+                type: SourceType.VERIFIED,
+                timestamp: new Date().toISOString(),
+                origin: caller,
+                confidence: 1.0,
+                metadata: getMember(caller)
+                  ? { role: getMember(caller)!.role }
+                  : undefined,
+              },
+            ]
+          : undefined;
         appendDecisionRecord(session_id, {
           timestamp: new Date().toISOString(),
           command: fullCmd,
@@ -232,6 +266,7 @@ export const executeCommand = {
           actual_outcome_hash: outputHash,
           success: true,
           session_id,
+          source_trace: sourceTrace,
         }).catch(() => {});
       }
 
@@ -267,6 +302,16 @@ export const executeCommand = {
           actual_outcome_hash: hashOutput(combined),
           success: false,
           session_id,
+          source_trace: caller
+            ? [
+                {
+                  type: SourceType.VERIFIED,
+                  timestamp: new Date().toISOString(),
+                  origin: caller,
+                  confidence: 1.0,
+                },
+              ]
+            : undefined,
         }).catch(() => {});
       }
 

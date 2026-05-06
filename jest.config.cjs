@@ -19,7 +19,8 @@ module.exports = {
   },
   moduleFileExtensions: ['ts', 'js', 'json', 'tsx', 'jsx'],
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1'
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@ling/protocol$': '<rootDir>/tests/__mocks__/@ling/protocol.js',
   },
   transformIgnorePatterns: [
     'node_modules/(?!(uuid)/)'
