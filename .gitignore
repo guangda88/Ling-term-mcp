@@ -36,7 +36,11 @@ yarn-error.log*
 
 # Temporary files
 *.tmp
+*.bak
 .cache/
+
+# Reports (generated, not code)
+*_REPORT_*.md
 
 # NPM package
 *.tgz
