@@ -394,4 +394,153 @@ describe('execute_command', () => {
       expect(record?.source_trace?.[0]?.origin).toBe('lingresearch');
     });
   });
+
+  describe('security audit log', () => {
+    it('should log rejected commands to stderr with caller', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+      try {
+        await executeCommand.handler({
+          command: 'rm',
+          caller: 'lingxi',
+        });
+        fail('Should have thrown');
+      } catch (e: unknown) {
+        expect((e as Error).message).toContain('Security validation failed');
+      }
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[security] Command rejected')
+      );
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('caller: lingxi')
+      );
+      errorSpy.mockRestore();
+    });
+
+    it('should log rejected commands with no caller', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+      try {
+        await executeCommand.handler({ command: 'sudo' });
+        fail('Should have thrown');
+      } catch (e: unknown) {
+        expect((e as Error).message).toContain('Security validation failed');
+      }
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('no caller')
+      );
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe('session env blocklist', () => {
+    it('should not merge blocklisted env vars from session', async () => {
+      await saveSession({
+        id: 'env-block-session',
+        name: 'test',
+        working_directory: '/tmp',
+        created_at: new Date().toISOString(),
+        status: 'active',
+        environment: {
+          MY_SAFE_VAR: 'safe-value',
+          PATH: '/evil/path',
+          LD_PRELOAD: '/evil.so',
+        },
+      });
+
+      const result = await executeCommand.handler({
+        command: 'echo',
+        args: ['$MY_SAFE_VAR'],
+        session_id: 'env-block-session',
+      });
+
+      expect(result.isError).toBeUndefined();
+      const session = await import('../../src/sessions/store').then((m) =>
+        m.getSession('env-block-session')
+      );
+      expect(session?.environment?.MY_SAFE_VAR).toBe('safe-value');
+    });
+  });
+
+  describe('shell mode cd edge cases', () => {
+    it('should reject cd with command substitution', async () => {
+      await saveSession({
+        id: 'cd-inject-session',
+        name: 'test',
+        working_directory: '/tmp',
+        created_at: new Date().toISOString(),
+        status: 'active',
+      });
+
+      await executeCommand.handler({
+        command: 'cd $(cat /etc/passwd)',
+        shell: true,
+        session_id: 'cd-inject-session',
+      });
+
+      const session = await import('../../src/sessions/store').then((m) =>
+        m.getSession('cd-inject-session')
+      );
+      expect(session?.working_directory).toBe('/tmp');
+    });
+
+    it('should reject cd with backtick injection', async () => {
+      await saveSession({
+        id: 'cd-backtick-session',
+        name: 'test',
+        working_directory: '/tmp',
+        created_at: new Date().toISOString(),
+        status: 'active',
+      });
+
+      await executeCommand.handler({
+        command: 'cd `cat /etc/shadow`',
+        shell: true,
+        session_id: 'cd-backtick-session',
+      });
+
+      const session = await import('../../src/sessions/store').then((m) =>
+        m.getSession('cd-backtick-session')
+      );
+      expect(session?.working_directory).toBe('/tmp');
+    });
+
+    it('should allow cd to safe path and update session', async () => {
+      await saveSession({
+        id: 'cd-safe-session',
+        name: 'test',
+        working_directory: '/tmp',
+        created_at: new Date().toISOString(),
+        status: 'active',
+      });
+
+      await executeCommand.handler({
+        command: 'cd /home',
+        shell: true,
+        session_id: 'cd-safe-session',
+      });
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      const session = await import('../../src/sessions/store').then((m) =>
+        m.getSession('cd-safe-session')
+      );
+      expect(session?.working_directory).toBe('/home');
+    });
+  });
+
+  describe('error category classification', () => {
+    it('should return error_meta with category for failed commands', async () => {
+      const result = await executeCommand.handler({
+        command: 'ls',
+        args: ['/nonexistent_dir_xyz_12345'],
+      });
+
+      expect(result.isError).toBe(true);
+      const metaContent = result.content.find(
+        (c: { type: string; text: string }) =>
+          c.type === 'text' && c.text.includes('error_meta')
+      );
+      expect(metaContent).toBeDefined();
+      expect(metaContent!.text).toContain('category');
+    });
+  });
 });
