@@ -8,5 +8,10 @@ export async function startHTTPProxyServer(): Promise<void> {
     port: 9529,
     portEnv: 'LING_TERM_HTTP_PORT',
     hostEnv: 'LING_TERM_HTTP_HOST',
+    authToken: process.env.LING_TERM_AUTH_TOKEN,
+    rateLimit: {
+      windowMs: 60_000,
+      maxRequests: 100,
+    },
   });
 }
