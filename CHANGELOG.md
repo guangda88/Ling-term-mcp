@@ -175,6 +175,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### HTTP Proxy Security (M3-M5)
+
+- **Bearer token authentication** for HTTP proxy — opt-in via `authToken` param or `LING_TERM_AUTH_TOKEN` env var
+- **Per-IP rate limiting** with sliding window — configurable `windowMs` + `maxRequests`, returns standard 429 + Retry-After
+- **Reusable HTTP proxy template** (`src/templates/mcp-http-proxy.ts`) — wrap any MCP Server factory with auth + rate limiting
+- **Audit log** on command rejection path — `console.error` with caller identity for forensic visibility
+- **29 unit tests** for security middleware:
+  - 22 tests for HTTP proxy auth + rate limiting (checkAuth, checkRateLimit, edge cases)
+  - 7 critical-path tests for execute_command (audit log, env blocklist, cd injection, error classification)
+
+### Changed
+
+- `docs/SECURITY_AUDIT.md` — findings #3/#4 updated to "Fixed", #14 to "Mitigated"
+
+### Fixed
+
+- M2 finding #11 (partial): audit logging for rejected commands in `execute_command`
+
+Assisted-by: GLM-5.1 via Crush <crush@charm.land>
+
 ---
 
 [1.0.0]: https://github.com/guangda/ling-term-mcp/releases/tag/v1.0.0
