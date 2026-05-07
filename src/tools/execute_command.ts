@@ -37,7 +37,30 @@ const SESSION_ENV_BLOCKLIST = new Set([
   'IFS',
   'ENV',
   'BASH_ENV',
+  'NODE_OPTIONS',
+  'PYTHONSTARTUP',
+  'PYTHONPATH',
+  'PYTHONINSPECT',
+  'GIT_EXEC_PATH',
+  'RUBYOPT',
+  'PERL5LIB',
+  'PERL5OPT',
+  'LD_AUDIT',
+  'MALLOC_CHECK_',
+  'GCONV_PATH',
+  'BASH_FUNC_',
 ]);
+
+const BLOCKED_CWD_PREFIXES = ['/etc', '/root', '/var', '/boot', '/sbin'];
+
+function isCwdAllowed(resolvedPath: string): boolean {
+  for (const prefix of BLOCKED_CWD_PREFIXES) {
+    if (resolvedPath.startsWith(prefix + '/') || resolvedPath === prefix) {
+      return false;
+    }
+  }
+  return true;
+}
 
 const DEFAULT_TIMEOUT = 60000;
 const MAX_TIMEOUT = 600000;
@@ -247,7 +270,11 @@ export const executeCommand = {
         const cdTarget = parseCdTarget(command);
         if (cdTarget && cwd) {
           const newCwd = path.resolve(cwd, cdTarget);
-          await updateSession(session_id, { working_directory: newCwd });
+          if (!isCwdAllowed(newCwd)) {
+            console.error(`[security] cd to blocked path rejected: ${newCwd}`);
+          } else {
+            await updateSession(session_id, { working_directory: newCwd });
+          }
         }
 
         const exports = parseExports(command);
