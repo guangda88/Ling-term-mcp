@@ -179,29 +179,6 @@ Audit data is stored in `.ling-term-mcp/sessions.json` in the working directory.
 
 ---
 
-## Configuration
-
-### Environment Variables
-
-- `LING_TERM_MCP_LOG_LEVEL`: Logging level (debug, info, warn, error)
-- `LING_TERM_MCP_MAX_CONNECTIONS`: Maximum concurrent connections (default: 100)
-- `LING_TERM_MCP_TIMEOUT`: Command timeout in seconds (default: 60)
-
-### Configuration File
-
-Create a `.ling-term-mcp.json` file in your home directory:
-
-```json
-{
-  "logLevel": "info",
-  "maxConnections": 100,
-  "timeout": 60,
-  "workingDirectory": "/home/user"
-}
-```
-
----
-
 ## Troubleshooting
 
 ### Server won't start

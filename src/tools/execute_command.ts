@@ -27,6 +27,18 @@ const execFileAsync = promisify(execFile);
 const BLOCKED_ENV_RE =
   /SECRET|PASSWORD|TOKEN|API_KEY|PRIVATE_KEY|AUTH|CREDENTIAL|ACCESS_KEY/i;
 
+const SESSION_ENV_BLOCKLIST = new Set([
+  'PATH',
+  'LD_PRELOAD',
+  'LD_LIBRARY_PATH',
+  'SHELL',
+  'HOME',
+  'USER',
+  'IFS',
+  'ENV',
+  'BASH_ENV',
+]);
+
 const DEFAULT_TIMEOUT = 60000;
 const MAX_TIMEOUT = 600000;
 const MAX_OUTPUT_LENGTH = 10000;
@@ -43,7 +55,11 @@ function buildSafeEnv(sessionEnv?: Record<string, string>): NodeJS.ProcessEnv {
     }
   }
   if (sessionEnv) {
-    Object.assign(safeEnv, sessionEnv);
+    for (const [key, value] of Object.entries(sessionEnv)) {
+      if (SESSION_ENV_BLOCKLIST.has(key)) continue;
+      if (BLOCKED_ENV_RE.test(key)) continue;
+      safeEnv[key] = value;
+    }
   }
   return safeEnv;
 }
@@ -60,7 +76,10 @@ function truncateOutput(output: string): string {
 
 function parseCdTarget(command: string): string | null {
   const match = command.match(/^\s*cd\s+([^;&|]+)/);
-  return match ? match[1].trim() : null;
+  if (!match) return null;
+  const target = match[1].trim();
+  if (/\$\(|`|\\|\n/.test(target)) return null;
+  return target;
 }
 
 function parseExports(command: string): Record<string, string> | null {
@@ -213,6 +232,7 @@ export const executeCommand = {
               timeout: effectiveTimeout,
               env: execEnv,
               cwd,
+              maxBuffer: 1024 * 1024,
             });
           }
         },
@@ -242,7 +262,9 @@ export const executeCommand = {
 
       if (session_id) {
         const fullCmd = shell ? command : [command, ...cmdArgs].join(' ');
-        appendCommandHistory(session_id, fullCmd).catch(() => {});
+        appendCommandHistory(session_id, fullCmd).catch((e) =>
+          console.error('[audit] appendCommandHistory failed:', e)
+        );
 
         const outputHash = hashOutput(rawOutput);
         const sourceTrace = caller
@@ -267,7 +289,9 @@ export const executeCommand = {
           success: true,
           session_id,
           source_trace: sourceTrace,
-        }).catch(() => {});
+        }).catch((e) =>
+          console.error('[audit] appendDecisionRecord failed:', e)
+        );
       }
 
       return {
@@ -324,7 +348,9 @@ export const executeCommand = {
                 },
               ]
             : undefined,
-        }).catch(() => {});
+        }).catch((e) =>
+          console.error('[audit] appendDecisionRecord failed:', e)
+        );
       }
 
       const errorMeta = JSON.stringify({

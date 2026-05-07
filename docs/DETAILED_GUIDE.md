@@ -71,7 +71,6 @@ Ling-term-mcp/
 ├── src/
 │   ├── index.ts              # MCP server entry point
 │   ├── cli.ts                # CLI binary entry point
-│   ├── types.ts              # Shared type definitions
 │   ├── tools/
 │   │   ├── create_session.ts
 │   │   ├── destroy_session.ts
@@ -79,23 +78,20 @@ Ling-term-mcp/
 │   │   ├── list_sessions.ts
 │   │   └── sync_terminal.ts
 │   ├── sessions/
-│   │   ├── manager.ts        # SessionManager
 │   │   └── store.ts          # Session persistence
 │   ├── security/
 │   │   ├── validator.ts      # SecurityValidator
 │   │   └── identity.ts       # 灵族 member registry
 │   ├── monitoring/
 │   │   └── performance.ts    # PerformanceMonitor
-│   └── utils/
+│   └── audit/
+│       ├── contracts.ts      # Behavioral contracts
+│       ├── metacognitive.ts  # Metacognitive audit
+│       └── snapshot.ts       # Session snapshots
 ├── tests/
 │   ├── unit/
-│   ├── integration/
 │   ├── e2e/
 │   └── stress/
-├── config/
-├── examples/
-├── scripts/
-├── optimization/
 └── docs/
 ```
 
@@ -188,7 +184,7 @@ export const myTool = {
 
 ## Important Gotchas
 
-- `package.json` says `"type": "module"` but compiles to CommonJS
+- `package.json` does NOT declare `"type": "module"` — this is CommonJS throughout
 - Source imports must use `.js` extensions for local files
 - Jest config must be `.cjs` format
 - `console.log` reserved for MCP protocol — use `console.error` for logging

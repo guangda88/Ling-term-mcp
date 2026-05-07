@@ -27,7 +27,7 @@ const SERVER_CONFIG = {
 /**
  * Create and configure MCP Server
  */
-function createServer(): Server {
+export function createServer(): Server {
   const server = new Server(
     {
       name: SERVER_CONFIG.name,

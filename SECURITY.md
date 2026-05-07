@@ -30,7 +30,7 @@ groupdel, su, sudo, visudo, crontab, at, batch
 
 ### 3. Command Whitelist (optional, disabled by default)
 
-When `allowUnknownCommands` is set to `false`, only commands in the whitelist are permitted. The default whitelist includes 90+ commonly used safe commands (ls, git, npm, node, python, etc.).
+When `allowUnknownCommands` is set to `false` (default), only commands in the whitelist are permitted. The default whitelist includes 80+ commonly used safe commands (ls, git, npm, node, python, etc.).
 
 ### 4. Dangerous Pattern Detection
 
@@ -58,7 +58,7 @@ When `sanitizeUserInput` is enabled (default), arguments are checked for:
 
 ```typescript
 {
-  allowUnknownCommands: true,   // Blacklist-only mode
+  allowUnknownCommands: false,  // Whitelist mode (default)
   sanitizeUserInput: true,      // Filter injection characters
   maxCommandLength: 10000       // Max command length in characters
 }
