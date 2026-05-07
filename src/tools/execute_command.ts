@@ -223,6 +223,10 @@ export const executeCommand = {
       shell
     );
     if (!securityCheck.valid) {
+      console.error(
+        `[security] Command rejected: "${command}" — ${securityCheck.error}` +
+          (caller ? ` (caller: ${caller})` : ' (no caller)')
+      );
       throw new Error(`Security validation failed: ${securityCheck.error}`);
     }
 
