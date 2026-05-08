@@ -14,11 +14,11 @@
 **M1 HTTP 代理迁移: DONE. M2 安全审计: DONE. M3 HTTP代理安全加固: DONE. M4 单元测试: DONE. M5 审计日志+关键路径测试: DONE.**
 
 ## 已知问题
-- **7 个测试失败**（全部与 validator.ts 白名单变更有关，blocked）
+- **13 个测试失败**（全部与 validator.ts 白名单变更有关，blocked）
   - `security.test.ts` (2 fail): 期望 bash/curl/wget 在白名单，被移除
-  - `execute_command.test.ts` (4 fail): cd/export/sleep/env 相关
+  - `execute_command.test.ts` (7 fail): cd/export/printenv/nonexistent_command 相关
   - `lifecycle.test.ts` (4 fail): shell cd/pipe/env/timeout 相关
-- **根因**: `validator.ts` 有未完成的白名单重构（其他成员的修改），不要碰
+- **根因**: `validator.ts` 有未完成的白名单重构（其他成员的修改：移除 bash/sh/curl/wget/printenv/npm/docker 等，allowUnknownCommands→false），不要碰
 - lint: 0 errors, 42 warnings (pre-existing)
 - tsc: clean
 
