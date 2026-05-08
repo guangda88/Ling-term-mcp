@@ -14,22 +14,22 @@
 
 ### Findings
 
-| #   | Severity     | Finding                                                                                      | File                       | Status                                                   |
-| --- | ------------ | -------------------------------------------------------------------------------------------- | -------------------------- | -------------------------------------------------------- | ------------------ | --------------------- |
-| 1   | **Critical** | Shell mode only validates first word — `;` `&&` `                                            |                            | ` bypass                                                 | `validator.ts:273` | Blocked — other owner |
-| 2   | **Critical** | `node`/`python` in whitelist enables RCE via `-e`/`-c` flags                                 | `validator.ts:37-39`       | Blocked — other owner                                    |
-| 3   | **Critical** | No auth on HTTP proxy (any network client can execute commands)                              | `mcp-http-proxy.ts`        | **Fixed** — Bearer token auth (commit a4d0051)           |
-| 4   | **High**     | No rate limiting / resource limits on HTTP proxy                                             | `mcp-http-proxy.ts`        | **Fixed** — Per-IP rate limiting (commit a4d0051)        |
-| 5   | **High**     | Path traversal via `cd` in shell mode (session cwd could escape to `/etc`, `/root`)          | `execute_command.ts`       | **Fixed** — `BLOCKED_CWD_PREFIXES`                       |
-| 6   | **High**     | Session env injection (`NODE_OPTIONS`, `PYTHONSTARTUP`, etc.)                                | `execute_command.ts`       | **Fixed** — expanded `SESSION_ENV_BLOCKLIST`             |
-| 7   | **High**     | Dangerous pattern regexes trivially bypassable (`rm -rf /` passes because `/` isn't a space) | `validator.ts:137-160`     | Blocked — other owner                                    |
-| 8   | **Medium**   | Error output leaks absolute paths and env details                                            | `execute_command.ts`       | Acceptable — debug utility                               |
-| 9   | **Medium**   | Race condition: session read-then-update not atomic                                          | `sessions/store.ts`        | Low priority — single-process                            |
-| 10  | **Medium**   | `MAX_OUTPUT_LENGTH` (10K) can be circumvented by large stderr                                | `execute_command.ts`       | Low — truncation applies to combined                     |
-| 11  | **Medium**   | No audit log for security-rejected commands                                                  | `validator.ts`             | Blocked — other owner                                    |
-| 12  | **Low**      | `parseExports` doesn't validate variable names against `SESSION_ENV_BLOCKLIST`               | `execute_command.ts:85-96` | Mitigated — `buildSafeEnv` filters downstream            |
-| 13  | **Low**      | `parseCdTarget` allows `..` chains (e.g. `cd ../../../etc`)                                  | `execute_command.ts:77-83` | **Fixed** — caught by `isCwdAllowed`                     |
-| 14  | **Low**      | No command history size limit — unbounded growth                                             | `sessions/store.ts`        | **Mitigated** — `MAX_HISTORY_PER_SESSION=100` auto-trims |
+| #   | Severity     | Finding                                                                                      | File                                 | Status                                                                     |
+| --- | ------------ | -------------------------------------------------------------------------------------------- | ------------------------------------ | -------------------------------------------------------------------------- | ------------------ | --------------------- |
+| 1   | **Critical** | Shell mode only validates first word — `;` `&&` `                                            |                                      | ` bypass                                                                   | `validator.ts:273` | Blocked — other owner |
+| 2   | **Critical** | `node`/`python` in whitelist enables RCE via `-e`/`-c` flags                                 | `validator.ts:37-39`                 | Blocked — other owner                                                      |
+| 3   | **Critical** | No auth on HTTP proxy (any network client can execute commands)                              | `mcp-http-proxy.ts`                  | **Fixed** — Bearer token auth (commit a4d0051)                             |
+| 4   | **High**     | No rate limiting / resource limits on HTTP proxy                                             | `mcp-http-proxy.ts`                  | **Fixed** — Per-IP rate limiting (commit a4d0051)                          |
+| 5   | **High**     | Path traversal via `cd` in shell mode (session cwd could escape to `/etc`, `/root`)          | `execute_command.ts`                 | **Fixed** — `BLOCKED_CWD_PREFIXES`                                         |
+| 6   | **High**     | Session env injection (`NODE_OPTIONS`, `PYTHONSTARTUP`, etc.)                                | `execute_command.ts`                 | **Fixed** — expanded `SESSION_ENV_BLOCKLIST`                               |
+| 7   | **High**     | Dangerous pattern regexes trivially bypassable (`rm -rf /` passes because `/` isn't a space) | `validator.ts:137-160`               | Blocked — other owner                                                      |
+| 8   | **Medium**   | Error output leaks absolute paths and env details                                            | `execute_command.ts`                 | Acceptable — debug utility                                                 |
+| 9   | **Medium**   | Race condition: session read-then-update not atomic                                          | `sessions/store.ts`                  | Low priority — single-process                                              |
+| 10  | **Medium**   | `MAX_OUTPUT_LENGTH` (10K) can be circumvented by large stderr                                | `execute_command.ts`                 | Low — truncation applies to combined                                       |
+| 11  | **Medium**   | No audit log for security-rejected commands                                                  | `validator.ts`, `execute_command.ts` | **Mitigated** — audit log in `execute_command.ts:225-230` (commit 5b4ef92) |
+| 12  | **Low**      | `parseExports` doesn't validate variable names against `SESSION_ENV_BLOCKLIST`               | `execute_command.ts:85-96`           | Mitigated — `buildSafeEnv` filters downstream                              |
+| 13  | **Low**      | `parseCdTarget` allows `..` chains (e.g. `cd ../../../etc`)                                  | `execute_command.ts:77-83`           | **Fixed** — caught by `isCwdAllowed`                                       |
+| 14  | **Low**      | No command history size limit — unbounded growth                                             | `sessions/store.ts`                  | **Mitigated** — `MAX_HISTORY_PER_SESSION=100` auto-trims                   |
 
 ### Fixes Applied (this audit)
 
@@ -100,5 +100,7 @@ Scanned all 13 MCP servers across the 灵族 ecosystem by reading source code of
 ## Appendix: Test Results
 
 - **Before fixes**: 92 passed, 2 failed (pre-existing `validator.ts` failures)
-- **After fixes**: 92 passed, 2 failed (no regression)
+- **After M2**: 92 passed, 2 failed (no regression)
+- **After M3-M5**: 145 passed, 12 failed (all from `validator.ts` whitelist refactor — blocked on other owner)
+- **Test coverage (execute_command.ts)**: 91.3% statements, 76.25% branches, 92.72% lines
 - **Type check**: Clean (`npx tsc --noEmit`)
