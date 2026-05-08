@@ -61,7 +61,6 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@ling/protocol": "file:../ling-protocol",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "uuid": "^11.0.0"
   },

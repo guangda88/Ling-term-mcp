@@ -7,7 +7,7 @@ import type {
   DecisionRecord,
   SessionSnapshot,
   BehavioralViolation,
-} from '@ling/protocol';
+} from '../protocol/types.js';
 import * as crypto from 'crypto';
 
 const NETWORK_RE = /\b(curl|wget|nc|netcat|telnet|ssh|scp|rsync)\b/;

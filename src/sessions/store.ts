@@ -9,7 +9,7 @@ import type {
   DecisionRecord,
   BehavioralViolation,
   SessionSnapshot,
-} from '@ling/protocol';
+} from '../protocol/types.js';
 import { checkBehavioralContracts } from '../audit/contracts.js';
 import { generateSnapshot } from '../audit/snapshot.js';
 

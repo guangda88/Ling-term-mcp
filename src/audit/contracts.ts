@@ -7,7 +7,7 @@ import type {
   DecisionRecord,
   BehavioralViolation,
   BehavioralRule,
-} from '@ling/protocol';
+} from '../protocol/types.js';
 
 const RULES: BehavioralRule[] = [
   {

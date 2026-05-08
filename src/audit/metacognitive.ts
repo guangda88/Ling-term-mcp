@@ -8,7 +8,7 @@ import type {
   MetacognitiveAudit,
   SourceTrace,
   SourceType,
-} from '@ling/protocol';
+} from '../protocol/types.js';
 
 export interface MetacognitiveMetrics {
   reasoningSpecificity: number; // 0-1: how specific the reasoning is

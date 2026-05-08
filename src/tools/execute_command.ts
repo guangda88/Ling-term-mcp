@@ -7,7 +7,7 @@ import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
 import { securityValidator } from '../security/validator.js';
-import { SourceType } from '@ling/protocol';
+import { SourceType } from '../protocol/types.js';
 import { isKnownMember, getMember } from '../security/identity.js';
 import {
   withPerformanceTracking,
