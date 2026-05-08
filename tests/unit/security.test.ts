@@ -206,16 +206,16 @@ describe('SecurityValidator', () => {
       expect(DEFAULT_SECURITY_CONFIG.blacklist).not.toContain('wget');
     });
 
-    it('should include shell interpreters in whitelist', () => {
+    it('should NOT include shell interpreters in whitelist', () => {
       const shellCommands = ['bash', 'sh', 'zsh', 'fish'];
       shellCommands.forEach((cmd) => {
-        expect(DEFAULT_SECURITY_CONFIG.whitelist).toContain(cmd);
+        expect(DEFAULT_SECURITY_CONFIG.whitelist).not.toContain(cmd);
       });
     });
 
-    it('should include curl/wget in whitelist', () => {
-      expect(DEFAULT_SECURITY_CONFIG.whitelist).toContain('curl');
-      expect(DEFAULT_SECURITY_CONFIG.whitelist).toContain('wget');
+    it('should NOT include curl/wget in whitelist', () => {
+      expect(DEFAULT_SECURITY_CONFIG.whitelist).not.toContain('curl');
+      expect(DEFAULT_SECURITY_CONFIG.whitelist).not.toContain('wget');
     });
   });
 

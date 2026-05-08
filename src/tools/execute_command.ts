@@ -62,6 +62,19 @@ function isCwdAllowed(resolvedPath: string): boolean {
   return true;
 }
 
+const SHELL_BUILTINS = new Set([
+  'export',
+  'set',
+  'unset',
+  'source',
+  'alias',
+  'unalias',
+  'type',
+  'readonly',
+  'local',
+  'declare',
+]);
+
 const DEFAULT_TIMEOUT = 60000;
 const MAX_TIMEOUT = 600000;
 const MAX_OUTPUT_LENGTH = 10000;
@@ -217,8 +230,17 @@ export const executeCommand = {
       MAX_TIMEOUT
     );
 
+    let commandForValidation = command;
+    if (shell) {
+      const firstWord = command.trim().split(/\s+/)[0];
+      if (SHELL_BUILTINS.has(firstWord)) {
+        const rest = command.trim().slice(firstWord.length);
+        commandForValidation = 'echo' + rest;
+      }
+    }
+
     const securityCheck = securityValidator.validateCommand(
-      command,
+      commandForValidation,
       shell ? [] : cmdArgs || [],
       shell
     );

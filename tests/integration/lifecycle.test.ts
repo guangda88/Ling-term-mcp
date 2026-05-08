@@ -58,7 +58,7 @@ describe('Integration: Full session lifecycle', () => {
     const sessionId = sessionMatch![1];
 
     await executeCommand.handler({
-      command: 'cd /var',
+      command: 'cd /home',
       shell: true,
       session_id: sessionId,
     });
@@ -67,7 +67,7 @@ describe('Integration: Full session lifecycle', () => {
       command: 'pwd',
       session_id: sessionId,
     });
-    expect(pwdResult.content[0].text.trim()).toBe('/var');
+    expect(pwdResult.content[0].text.trim()).toBe('/home');
 
     const pipeResult = await executeCommand.handler({
       command: 'ls -1 | head -5',
@@ -183,8 +183,8 @@ describe('Integration: Full session lifecycle', () => {
 describe('Integration: Timeout handling', () => {
   it('should timeout long-running commands', async () => {
     const result = await executeCommand.handler({
-      command: 'sleep',
-      args: ['10'],
+      command: 'node',
+      args: ['-e', 'setTimeout(()=>{},30000)'],
       timeout: 1000,
     });
 

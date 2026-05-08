@@ -23,11 +23,14 @@ describe('execute_command', () => {
 
   it('should handle command errors', async () => {
     const result = await executeCommand.handler({
-      command: 'nonexistent_command',
+      command: 'cat',
+      args: ['/nonexistent_test_path_xyz'],
     });
 
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/error|Error|ENOENT/i);
+    expect(result.content[0].text).toMatch(
+      /error|Error|ENOENT|No such|没有|failed/i
+    );
   });
 
   it('should require command parameter', async () => {
@@ -89,8 +92,8 @@ describe('execute_command', () => {
     process.env.SECRET_KEY_FOR_TEST = 'super-secret-value';
 
     const result = await executeCommand.handler({
-      command: 'printenv',
-      args: ['SECRET_KEY_FOR_TEST'],
+      command: 'node',
+      args: ['-e', 'process.exit(process.env.SECRET_KEY_FOR_TEST ? 0 : 1)'],
     });
 
     delete process.env.SECRET_KEY_FOR_TEST;
@@ -102,8 +105,8 @@ describe('execute_command', () => {
     process.env.LING_TEST_REGULAR_VAR = 'visible-value';
 
     const result = await executeCommand.handler({
-      command: 'printenv',
-      args: ['LING_TEST_REGULAR_VAR'],
+      command: 'node',
+      args: ['-e', 'console.log(process.env.LING_TEST_REGULAR_VAR)'],
     });
 
     delete process.env.LING_TEST_REGULAR_VAR;
@@ -140,17 +143,17 @@ describe('execute_command', () => {
     });
 
     const result = await executeCommand.handler({
-      command: 'cd /var && pwd',
+      command: 'cd /home && pwd',
       shell: true,
       session_id: 'cd-session',
     });
 
-    expect(result.content[0].text).toContain('/var');
+    expect(result.content[0].text).toContain('/home');
 
     const session = await import('../../src/sessions/store').then((m) =>
       m.getSession('cd-session')
     );
-    expect(session?.working_directory).toBe('/var');
+    expect(session?.working_directory).toBe('/home');
   });
 
   it('should support export in shell mode and update session env', async () => {
@@ -263,8 +266,8 @@ describe('execute_command', () => {
     });
 
     const result = await executeCommand.handler({
-      command: 'printenv',
-      args: ['CUSTOM_VAR'],
+      command: 'node',
+      args: ['-e', 'console.log(process.env.CUSTOM_VAR)'],
       session_id: 'env-merge-session',
     });
 
@@ -378,7 +381,8 @@ describe('execute_command', () => {
       });
 
       await executeCommand.handler({
-        command: 'nonexistent_cmd_xyz',
+        command: 'cat',
+        args: ['/nonexistent_path_for_source_trace_xyz'],
         session_id: 'fail-trace-session',
         caller: 'lingresearch',
       });
