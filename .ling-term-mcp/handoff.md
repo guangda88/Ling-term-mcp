@@ -3,6 +3,7 @@
 > 状态: active
 
 ## 上次完成
+- **commit 8c45bb3**: `docs: update handoff.md and CHANGELOG.md for M5 completion`
 - **commit 6d034d9**: `test(security): add 7 critical-path tests for execute_command (M5)`
 - **commit 5b4ef92**: `feat(security): add audit log to command rejection path (#11 partial)`
 - **commit 15fb1f6**: `docs(security): update audit findings #3/#4/#14 status`
