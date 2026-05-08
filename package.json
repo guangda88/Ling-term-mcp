@@ -14,7 +14,7 @@
     "dev:watch": "tsx watch src/index.ts",
     "test": "jest tests/unit --runInBand",
     "test:unit": "jest tests/unit --runInBand",
-    "test:e2e": "node --test tests/e2e/cli.test.ts",
+    "test:e2e": "tsx --test tests/e2e/cli.test.ts",
     "test:stress": "tsx tests/stress/stress-tests.ts",
     "test:coverage": "jest tests/unit --coverage --runInBand",
     "test:watch": "jest tests/unit --watch --runInBand",

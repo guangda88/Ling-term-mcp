@@ -102,6 +102,6 @@ Scanned all 13 MCP servers across the 灵族 ecosystem by reading source code of
 - **Before fixes**: 92 passed, 2 failed (pre-existing `validator.ts` failures)
 - **After M2**: 92 passed, 2 failed (no regression)
 - **After M3-M5**: 145 passed, 12 failed (all from `validator.ts` whitelist refactor — blocked on other owner)
-- **After M5.1** (commit `a6512c6`): **157 passed, 0 failed** — all green after test alignment with whitelist refactor
+- **After M5.1** (commit `a6512c6`): **151 passed, 0 failed** — all green after test alignment with whitelist refactor
 - **Test coverage (execute_command.ts)**: 91.3% statements, 76.25% branches, 92.72% lines
 - **Type check**: Clean (`npx tsc --noEmit`)

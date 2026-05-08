@@ -1,204 +1,191 @@
 /**
  * E2E Tests for Ling-term-mcp
+ * Tests the MCP server via HTTP proxy (StreamableHTTPServerTransport)
  */
 
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
-import path from 'node:path';
-import { describe, it } from 'node:test';
+import http from 'node:http';
+import { describe, it, before, after } from 'node:test';
 
-const CLI_PATH = path.resolve('dist/cli.js');
+const TSX = './node_modules/.bin/tsx';
+const PORT = 9876;
+const AUTH_TOKEN = 'e2e-test-token';
 
-async function runCli(args: string[]): Promise<{
-  status: number | null;
-  stdout: string;
-  stderr: string;
-}> {
+function parseSse(raw: string): any {
+  const match = raw.match(/^data:\s*(.+)$/m);
+  if (match) {
+    try {
+      return JSON.parse(match[1]);
+    } catch {
+      // fall through
+    }
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
+
+function httpRequest(
+  path: string,
+  method: string,
+  body?: object,
+  auth?: string
+): Promise<{ status: number; data: any }> {
   return new Promise((resolve, reject) => {
-    const child = spawn('node', [CLI_PATH, ...args]);
-    let stdout = '';
-    let stderr = '';
-
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk;
-    });
-
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk;
-    });
-
-    child.on('close', (status) => resolve({ status, stdout, stderr }));
-    child.on('error', reject);
-  });
-}
-
-async function runMcpServer(
-  args: string[]
-): Promise<{ serverProcess: any; port: number }> {
-  const serverProcess = spawn('node', [CLI_PATH, ...args]);
-  return { serverProcess, port: 8765 };
-}
-
-describe('Ling-term-mcp CLI', () => {
-  describe('Basic Operations', () => {
-    it('should display help when no arguments provided', async () => {
-      const result = await runCli([]);
-      assert.ok(
-        result.stdout.includes('Ling-term-mcp') ||
-          result.stdout.includes('灵犀'),
-        'Should show help or version'
-      );
-    });
-
-    it('should show version with --version flag', async () => {
-      const result = await runCli(['--version']);
-      assert.ok(
-        result.stdout.includes('1.0.0'),
-        `Version not found in output: ${result.stdout}`
-      );
-    });
-  });
-
-  describe('MCP Server', () => {
-    it('should start MCP server without errors', async () => {
-      const { serverProcess } = await runMcpServer([]);
-
-      // Give it a moment to start
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Kill the server
-      serverProcess.kill();
-
-      assert.ok(true, 'Server started without errors');
-    });
-
-    it('should handle MCP protocol messages', async () => {
-      const { serverProcess } = await runMcpServer([]);
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Test with a simple JSON-RPC message
-      serverProcess.stdin.write(
-        JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'initialize',
-          params: {
-            protocolVersion: '2024-11-05',
-            capabilities: {},
-            clientInfo: {
-              name: 'test-client',
-              version: '1.0.0',
-            },
-          },
-        }) + '\n'
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      serverProcess.kill();
-
-      assert.ok(true, 'Server handled MCP message');
-    });
-  });
-});
-
-describe('Performance Testing', () => {
-  it('should handle rapid sequential command execution', async () => {
-    const commands = ['echo test', 'pwd', 'ls'];
-    const results = await Promise.all(
-      commands.map((cmd) => runCli(['execute', cmd]))
-    );
-
-    results.forEach((result, index) => {
-      assert.strictEqual(result.status, 0, `Command ${index} failed`);
-    });
-  });
-
-  it('should handle concurrent requests', async () => {
-    const concurrentCommands = Array(10).fill('echo test');
-    const startTime = Date.now();
-
-    const results = await Promise.all(
-      concurrentCommands.map((cmd) => runCli(['execute', cmd]))
-    );
-
-    const endTime = Date.now();
-    const duration = endTime - startTime;
-
-    results.forEach((result) => {
-      assert.strictEqual(result.status, 0, 'Concurrent command failed');
-    });
-
-    assert.ok(
-      duration < 5000,
-      `Concurrent execution took too long: ${duration}ms`
-    );
-  });
-});
-
-describe('Memory Testing', () => {
-  it('should not leak memory on repeated executions', async () => {
-    const iterations = 50;
-
-    // Execute same command multiple times
-    for (let i = 0; i < iterations; i++) {
-      const result = await runCli(['execute', 'echo test']);
-      assert.strictEqual(result.status, 0, `Iteration ${i} failed`);
+    const payload = body ? JSON.stringify(body) : '';
+    const options: http.RequestOptions = {
+      hostname: '127.0.0.1',
+      port: PORT,
+      path,
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+      },
+    };
+    if (auth) {
+      options.headers!['Authorization'] = `Bearer ${auth}`;
+    }
+    if (payload) {
+      options.headers!['Content-Length'] = Buffer.byteLength(payload);
     }
 
-    // If we got here without crashing, memory is likely stable
-    assert.ok(
-      true,
-      `Successfully executed ${iterations} commands without memory issues`
-    );
+    const req = http.request(options, (res) => {
+      let raw = '';
+      res.on('data', (chunk: Buffer) => {
+        raw += chunk.toString();
+      });
+      res.on('end', () => {
+        resolve({ status: res.statusCode || 0, data: parseSse(raw) });
+      });
+    });
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
   });
-});
+}
 
-describe('Error Handling', () => {
-  it('should handle invalid commands gracefully', async () => {
-    const result = await runCli([
-      'execute',
-      'invalid-command-that-does-not-exist',
-    ]);
+describe('E2E: MCP HTTP Proxy', () => {
+  let serverProcess: ReturnType<typeof spawn>;
+
+  before(async () => {
+    serverProcess = spawn(TSX, ['src/cli.ts', 'http'], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        LING_TERM_HTTP_PORT: String(PORT),
+        LING_TERM_AUTH_TOKEN: AUTH_TOKEN,
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 2000));
+  });
+
+  after(() => {
+    try {
+      serverProcess.kill('SIGKILL');
+    } catch {
+      // already dead
+    }
+  });
+
+  it('should respond to health check', async () => {
+    const { status, data } = await httpRequest(
+      '/health',
+      'GET',
+      undefined,
+      AUTH_TOKEN
+    );
     assert.strictEqual(
-      result.status,
-      null,
-      'Invalid command should be handled'
+      status,
+      200,
+      `Health status should be 200, got ${status}`
     );
+    assert.strictEqual(data.status, 'ok');
+    assert.strictEqual(data.name, 'ling-term-mcp');
   });
 
-  it('should handle malformed input', async () => {
-    const result = await runCli(['execute', '']);
+  it('should reject requests without auth token', async () => {
+    const { status } = await httpRequest('/', 'POST', {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {},
+    });
+    assert.strictEqual(status, 401);
+  });
+
+  it('should respond to tools/list', async () => {
+    const { status, data } = await httpRequest(
+      '/',
+      'POST',
+      { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} },
+      AUTH_TOKEN
+    );
+    assert.strictEqual(status, 200, `tools/list status should be 200`);
+    assert.strictEqual(data.id, 1);
+    const toolNames = (data.result?.tools || []).map((t: any) => t.name);
     assert.ok(
-      result.stdout.includes('Error') || result.stderr.includes('Error'),
-      'Empty command should return error'
+      toolNames.includes('execute_command'),
+      `Should include execute_command, got: ${toolNames.join(', ')}`
     );
-  });
-});
-
-describe('Session Management', () => {
-  it('should create and destroy sessions', async () => {
-    const createResult = await runCli(['session', 'create']);
-    assert.ok(createResult.stdout.includes('session'), 'Should create session');
-
-    // Extract session ID from output
-    const match = createResult.stdout.match(/[a-f0-9-]{36}/);
-    if (!match) {
-      throw new Error('Could not extract session ID');
-    }
-
-    const sessionId = match[0];
-    const destroyResult = await runCli(['session', 'destroy', sessionId]);
-    assert.strictEqual(destroyResult.status, 0, 'Should destroy session');
-  });
-
-  it('should list active sessions', async () => {
-    const result = await runCli(['session', 'list']);
-    assert.strictEqual(result.status, 0, 'Should list sessions');
     assert.ok(
-      result.stdout.includes('session') || result.stdout.includes('[]'),
-      'Should show session information'
+      toolNames.includes('create_session'),
+      `Should include create_session, got: ${toolNames.join(', ')}`
     );
+    assert.ok(
+      toolNames.includes('destroy_session'),
+      `Should include destroy_session, got: ${toolNames.join(', ')}`
+    );
+  });
+
+  it('should execute a command via tools/call', async () => {
+    const { status, data } = await httpRequest(
+      '/',
+      'POST',
+      {
+        jsonrpc: '2.0',
+        id: 10,
+        method: 'tools/call',
+        params: {
+          name: 'execute_command',
+          arguments: {
+            command: 'echo hello_e2e',
+            caller: 'lingxi',
+          },
+        },
+      },
+      AUTH_TOKEN
+    );
+    assert.strictEqual(status, 200, `execute status should be 200`);
+    assert.strictEqual(data.id, 10);
+    const text = data.result?.content?.[0]?.text || '';
+    assert.ok(
+      text.includes('hello_e2e'),
+      `Should contain hello_e2e in: ${text}`
+    );
+  });
+
+  it('should handle invalid tool name', async () => {
+    const { status, data } = await httpRequest(
+      '/',
+      'POST',
+      {
+        jsonrpc: '2.0',
+        id: 20,
+        method: 'tools/call',
+        params: {
+          name: 'nonexistent_tool_xyz',
+          arguments: {},
+        },
+      },
+      AUTH_TOKEN
+    );
+    assert.strictEqual(status, 200, `Should still return 200 with error`);
+    assert.strictEqual(data.id, 20);
+    assert.ok(data.isError === true || data.result?.isError === true);
   });
 });
