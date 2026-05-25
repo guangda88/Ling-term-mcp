@@ -101,19 +101,38 @@ npm run format
 ```
 src/
 ├── index.ts          # MCP Server entry point
-├── cli.ts            # CLI entry point
+├── cli.ts            # CLI entry point (stdio/http/gateway)
+├── http-proxy.ts     # HTTP proxy with auth + rate limiting
 ├── tools/            # MCP tools
 │   ├── execute_command.ts
 │   ├── sync_terminal.ts
 │   ├── list_sessions.ts
 │   ├── create_session.ts
-│   └── destroy_session.ts
+│   ├── destroy_session.ts
+│   └── audit_report.ts
 ├── sessions/         # Session management
 │   └── store.ts
-├── security/         # Security validation
-│   └── validator.ts
-└── monitoring/       # Performance monitoring
-    └── performance.ts
+├── security/         # Security + identity
+│   ├── validator.ts
+│   └── identity.ts
+├── audit/            # Behavioral contracts + metacognitive
+│   ├── contracts.ts
+│   ├── metacognitive.ts
+│   ├── snapshot.ts
+│   ├── registry_loader.ts
+│   └── types.ts
+├── gateway/          # Command execution gateway
+│   ├── server.ts
+│   ├── coordinator.ts
+│   ├── queue.ts
+│   ├── notify.ts
+│   └── types.ts
+├── protocol/         # Shared protocol types
+│   └── types.ts
+├── monitoring/       # Performance monitoring
+│   └── performance.ts
+└── templates/        # Reusable MCP HTTP proxy
+    └── mcp-http-proxy.ts
 ```
 
 ## Testing

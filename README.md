@@ -19,7 +19,7 @@
 - **会话快照**: 会话结束时生成完整的行为摘要和审计轨迹
 - **元认知审计**: 评估 AI 决策质量，检测推理偏差和模式异常
 - **性能监控**: 内置 PerformanceMonitor，实时追踪 P50/P95/P99 指标
-- **高覆盖测试**: 178 个测试，行覆盖率 87%，分支覆盖率 72%
+- **高覆盖测试**: 172 个测试，14 个测试套件，全部通过
 
 ---
 
@@ -202,14 +202,14 @@ rm, rmdir, sudo, su, kill, killall, pkill, dd, mkfs, fdisk,
 shutdown, reboot, halt, chmod, chown, passwd, systemctl, ...
 ```
 
-> Shell 解释器（bash, sh, zsh, fish）和网络工具（curl, wget）**不在黑名单中**，但 `curl|bash` 等管道攻击会被危险模式检测拦截。
+> Shell 解释器（bash, sh, zsh, fish）和网络工具（curl, wget）已从白名单移除。解释器 RCE flag（`node -e`、`python -c`）被单独拦截，`curl|bash` 等管道攻击也会被危险模式检测拦截。
 
 ---
 
 ## 测试
 
 ```bash
-npm test              # 单元测试（178 tests）
+npm test              # 单元测试（172 tests，14 suites）
 npm run test:coverage # 覆盖率报告
 npm run test:e2e      # E2E 测试（Node.js test runner）
 npm run test:stress   # 压力测试
