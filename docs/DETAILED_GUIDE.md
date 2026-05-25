@@ -36,7 +36,6 @@ npm start            # Start production server (from compiled dist/)
 ```bash
 npm test             # Run unit tests (default)
 npm run test:unit    # Run unit tests explicitly
-npm run test:integration  # Run integration tests
 npm run test:e2e     # Run e2e tests (Node.js built-in test runner, NOT Jest)
 npm run test:stress  # Run stress tests (uses tsx directly)
 npm run test:coverage # Run tests with coverage report
