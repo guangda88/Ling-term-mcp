@@ -177,25 +177,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-#### HTTP Proxy Security (M3-M5)
+#### Command Execution Gateway
 
-- **Bearer token authentication** for HTTP proxy — opt-in via `authToken` param or `LING_TERM_AUTH_TOKEN` env var
-- **Per-IP rate limiting** with sliding window — configurable `windowMs` + `maxRequests`, returns standard 429 + Retry-After
-- **Reusable HTTP proxy template** (`src/templates/mcp-http-proxy.ts`) — wrap any MCP Server factory with auth + rate limiting
-- **Audit log** on command rejection path — `console.error` with caller identity for forensic visibility
-- **29 unit tests** for security middleware:
-  - 22 tests for HTTP proxy auth + rate limiting (checkAuth, checkRateLimit, edge cases)
-  - 7 critical-path tests for execute_command (audit log, env blocklist, cd injection, error classification)
+- **Gateway server** (`src/gateway/`) — HTTP command execution gateway on port 9530
+  - `server.ts` — Express server with source identity validation and rate limiting
+  - `coordinator.ts` — Command dispatch with critical priority gate (lingflow_plus only)
+  - `queue.ts` — Async command queue with per-source rate limiting (60 req/min)
+  - `notify.ts` — Push notification client for gateway events
+  - `types.ts` — Shared gateway types (DispatchRequest, DispatchResponse, CommandStatus)
+- **CLI gateway mode** — `ling-term-mcp gateway` starts gateway server
+- **audit_report MCP tool** — usage statistics, caller breakdown, command history, behavioral violations
+
+#### Security Hardening
+
+- **Shell metacharacter blocking** — `;`, backticks, `$()` rejected in shell mode
+- **Per-segment validation** — shell commands split by `&&`/`||`/`|`, every segment validated
+- **Interpreter RCE flag detection** — `node -e`, `python -c`, `perl -e`, `ruby -e`, `php -r` blocked
+- **Whitelist-only mode** — `allowUnknownCommands: false` by default
+- **Additional dangerous patterns** — `$(curl`, `$(wget`, `mkfifo`, `nc -el`, `socat`, `sudo`, `su`
+- **Additional pipe patterns** — `| bash`, `| sh`, `| python`, `| perl`, `| ruby`, `| php`
+- **Removed from whitelist** — `bash`, `sh`, `zsh`, `fish`, `curl`, `wget`, `env`, `printenv`, `docker`, `kubectl`, `terraform`, `ansible`
+- **Added to whitelist** — `sleep`, `true`, `false`, `test`
+
+#### Behavioral Contracts (SDTH Prevention)
+
+- `self-driven-publish-guard` — blocks git push / external POST in self-driven task context
+- `self-driven-scope-guard` — blocks writes outside declared output directory
+- `self-driven-no-modify-shared` — blocks modification of other members' code
 
 ### Changed
 
-- `docs/SECURITY_AUDIT.md` — findings #3/#4 updated to "Fixed", #14 to "Mitigated"
+- `identity.ts` — member directories updated to lowercase actual paths (`/home/ai/lingxi` etc.)
+- `store.ts` — data directory follows XDG specification (`~/.local/share/ling-term-mcp`)
+- `contracts.ts` — `checkBehavioralContracts()` now accepts optional `caller` parameter
+- `CONTRIBUTING.md` — project structure updated with audit/, gateway/, protocol/, templates/
+- `README.md` — test count corrected (172), whitelist policy updated
 
 ### Fixed
 
-- M2 finding #11 (partial): audit logging for rejected commands in `execute_command`
-
-Assisted-by: GLM-5.1 via Crush <crush@charm.land>
+- Session store path no longer depends on `process.cwd()` (was fragile)
+- Shell injection tests for `cd $(cat /etc/passwd)` and `cd \`cat /etc/shadow\`` now correctly rejected by security validator
 
 ---
 
