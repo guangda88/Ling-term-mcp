@@ -1,7 +1,7 @@
 # M2 Security Audit Report
 
 **Date**: 2026-05-08
-**Auditor**: 灵犀 (LingXi) — Agent #7
+**Auditor**: 灵犀 (lingxi) — Agent #7
 **Scope**: ling-term-mcp self-audit + cross-project ecosystem scan
 
 ---
@@ -59,18 +59,18 @@ Scanned all 13 MCP servers across the 灵族 ecosystem by reading source code of
 
 | Project           | Auth                         | Input Validation                                   | Audit Log | Shell Sandbox | Risk Level   |
 | ----------------- | ---------------------------- | -------------------------------------------------- | --------- | ------------- | ------------ |
-| **LingClaude**    | None                         | String-match blacklist only                        | None      | None          | **Critical** |
+| **lingclaude**    | None                         | String-match blacklist only                        | None      | None          | **Critical** |
 | **Ling-term-mcp** | Caller identity              | Multi-layer (length→blacklist→whitelist→injection) | Full      | Partial       | Medium       |
-| **LingMinOpt**    | None                         | AST sandbox + forbidden nodes/names                | Full      | AST-level     | Low          |
-| **LingMessage**   | HMAC-SHA256 (signing server) | Basic                                              | Partial   | None          | Low-Medium   |
-| LingFlow          | None                         | Basic                                              | Partial   | None          | Medium-High  |
-| LingResearch      | None                         | Basic                                              | None      | None          | High         |
-| LingZhi           | None                         | Basic                                              | None      | None          | High         |
-| LingTongAsk       | None                         | Basic                                              | None      | None          | Medium       |
-| LingFlow_plus     | None                         | Basic                                              | Partial   | None          | Medium       |
-| LingWeb           | None                         | Basic                                              | None      | None          | Medium       |
-| LingYang          | None                         | Basic                                              | None      | None          | Medium       |
-| ZhiBridge         | Token in plaintext           | Basic                                              | None      | None          | Medium       |
+| **lingminopt**    | None                         | AST sandbox + forbidden nodes/names                | Full      | AST-level     | Low          |
+| **lingmessage**   | HMAC-SHA256 (signing server) | Basic                                              | Partial   | None          | Low-Medium   |
+| lingflow          | None                         | Basic                                              | Partial   | None          | Medium-High  |
+| lingresearch      | None                         | Basic                                              | None      | None          | High         |
+| lingzhi           | None                         | Basic                                              | None      | None          | High         |
+| lingtongask       | None                         | Basic                                              | None      | None          | Medium       |
+| lingflowplus      | None                         | Basic                                              | Partial   | None          | Medium       |
+| lingweb           | None                         | Basic                                              | None      | None          | Medium       |
+| lingyang          | None                         | Basic                                              | None      | None          | Medium       |
+| zhibridge         | Token in plaintext           | Basic                                              | None      | None          | Medium       |
 | ling-protocol     | N/A (library)                | N/A                                                | N/A       | N/A           | N/A          |
 
 ### Key Findings
@@ -79,21 +79,21 @@ Scanned all 13 MCP servers across the 灵族 ecosystem by reading source code of
 
 **8 of 13 servers have zero input validation** beyond basic string matching.
 
-**LingClaude is highest risk**: `run_bash` tool in `lingclaude/engine/bash.py` executes unrestricted shell commands with full filesystem CRUD. Only protection is a string-match blacklist (trivially bypassable). No auth, no audit logging, no sandboxing.
+**lingclaude is highest risk**: `run_bash` tool in `lingclaude/engine/bash.py` executes unrestricted shell commands with full filesystem CRUD. Only protection is a string-match blacklist (trivially bypassable). No auth, no audit logging, no sandboxing.
 
-**LingMinOpt is the gold standard**: AST-based code sandboxing with forbidden nodes (`Import`, `Exec`, `Eval`), forbidden names (`__import__`, `open` with write modes), safe builtins allowlist, and full audit logging.
+**lingminopt is the gold standard**: AST-based code sandboxing with forbidden nodes (`Import`, `Exec`, `Eval`), forbidden names (`__import__`, `open` with write modes), safe builtins allowlist, and full audit logging.
 
 ### Recommendations
 
-1. **Immediate — LingClaude**: Add command validation beyond string matching. Prioritize removing or sandboxing `run_bash`. This is a live RCE vector.
+1. **Immediate — lingclaude**: Add command validation beyond string matching. Prioritize removing or sandboxing `run_bash`. This is a live RCE vector.
 
-2. **Ecosystem standard — Adopt LingMinOpt's AST sandbox**: The `lingminopt/mcp_server.py` pattern of AST-level validation with forbidden nodes, forbidden names, and safe builtins should be the baseline for all Python MCP servers.
+2. **Ecosystem standard — Adopt lingminopt's AST sandbox**: The `lingminopt/mcp_server.py` pattern of AST-level validation with forbidden nodes, forbidden names, and safe builtins should be the baseline for all Python MCP servers.
 
-3. **Authentication**: All HTTP-exposed MCP servers should implement bearer token auth at minimum. LingMessage's HMAC-SHA256 signing server is the best existing pattern.
+3. **Authentication**: All HTTP-exposed MCP servers should implement bearer token auth at minimum. lingmessage's HMAC-SHA256 signing server is the best existing pattern.
 
 4. **Validator.ts coordination**: ling-term-mcp's Critical findings (#1, #2, #7) require changes to `validator.ts`. Must coordinate with the file's owner via LingBus.
 
-5. **Credential hygiene**: Zhineng-knowledge-system has hardcoded DB credentials. ZhiBridge stores auth tokens in plaintext module variables. Both need secrets management.
+5. **Credential hygiene**: Zhineng-knowledge-system has hardcoded DB credentials. zhibridge stores auth tokens in plaintext module variables. Both need secrets management.
 
 ---
 

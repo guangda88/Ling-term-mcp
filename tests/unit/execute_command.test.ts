@@ -474,11 +474,13 @@ describe('execute_command', () => {
         status: 'active',
       });
 
-      await executeCommand.handler({
-        command: 'cd $(cat /etc/passwd)',
-        shell: true,
-        session_id: 'cd-inject-session',
-      });
+      await expect(
+        executeCommand.handler({
+          command: 'cd $(cat /etc/passwd)',
+          shell: true,
+          session_id: 'cd-inject-session',
+        })
+      ).rejects.toThrow('Security validation failed');
 
       const session = await import('../../src/sessions/store').then((m) =>
         m.getSession('cd-inject-session')
@@ -495,11 +497,13 @@ describe('execute_command', () => {
         status: 'active',
       });
 
-      await executeCommand.handler({
-        command: 'cd `cat /etc/shadow`',
-        shell: true,
-        session_id: 'cd-backtick-session',
-      });
+      await expect(
+        executeCommand.handler({
+          command: 'cd `cat /etc/shadow`',
+          shell: true,
+          session_id: 'cd-backtick-session',
+        })
+      ).rejects.toThrow('Security validation failed');
 
       const session = await import('../../src/sessions/store').then((m) =>
         m.getSession('cd-backtick-session')

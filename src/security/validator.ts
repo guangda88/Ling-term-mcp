@@ -33,7 +33,7 @@ export const DEFAULT_WHITELIST: string[] = [
   'htop',
   'history',
   'git',
-  'npm',
+  // Languages/runtimes: python, node retained for dev workflow
   'node',
   'python',
   'python3',
@@ -81,14 +81,6 @@ export const DEFAULT_WHITELIST: string[] = [
   'diff',
   'cmp',
   'patch',
-  'bash',
-  'sh',
-  'zsh',
-  'fish',
-  'curl',
-  'wget',
-  'env',
-  'printenv',
   'sed',
   'awk',
   'tr',
@@ -96,10 +88,10 @@ export const DEFAULT_WHITELIST: string[] = [
   'xargs',
   'tee',
   'jq',
-  'docker',
-  'kubectl',
-  'terraform',
-  'ansible',
+  'sleep',
+  'true',
+  'false',
+  'test',
 ];
 
 /**
@@ -147,29 +139,58 @@ export const DEFAULT_BLACKLIST: string[] = [
  * Dangerous patterns — checked against the full command string
  */
 const DANGEROUS_PATTERNS: RegExp[] = [
-  /rm\s+-rf\s+\//,
+  /rm\s+-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*\s+\//,
+  /rm\s+-[a-zA-Z]*f[a-zA-Z]*r[a-zA-Z]*\s+\//,
+  /rm\s+-rf?\s+[^\s]/,
+  /rm\s+-fr?\s+[^\s]/,
   />\s*\/dev\/sda/,
   />\s*\/dev\/hda/,
-  /chmod\s+777\s+\//,
+  />\s*\/dev\/null/,
+  /chmod\s+777\s+/,
   /chown\s+root:root/,
   /:()\{:&};:/,
   /\beval\s*\(/,
   /\bexec\s+\$/,
+  /\$\(\s*curl/,
+  /\$\(\s*wget/,
   /python[3]?\s+-c\s+.*import\s+socket/,
   /python[3]?\s+-c\s+.*subprocess/,
+  /python[3]?\s+-c\s+.*os\.system/,
   /perl\s+-e\s+.*socket/,
   /ruby\s+-e\s+.*TCPSocket/,
+  /\bmkfifo\s+/,
+  /\bnc\s+-[el]/,
+  /\bsocat\s+/,
+  /\bsudo\s+/,
+  /\bsu\s+/,
 ];
 
 const DANGEROUS_PIPE_PATTERNS: RegExp[] = [
-  /curl.*\|\s*(bash|sh|zsh|fish)/,
-  /wget.*\|\s*(bash|sh|zsh|fish)/,
+  /curl.*\|\s*(bash|sh|zsh|fish)/i,
+  /wget.*\|\s*(bash|sh|zsh|fish)/i,
+  /curl.*\s+\|\s*.*sh\b/,
+  /wget.*\s+\|\s*.*sh\b/,
+  /\|\s*bash\b/,
+  /\|\s*sh\b/,
+  /\|\s*python\b/,
+  /\|\s*perl\b/,
+  /\|\s*ruby\b/,
+  /\|\s*php\b/,
 ];
 
 const ALL_DANGEROUS_PATTERNS: RegExp[] = [
   ...DANGEROUS_PATTERNS,
   ...DANGEROUS_PIPE_PATTERNS,
 ];
+
+const INTERPRETER_RCE_FLAGS: Record<string, RegExp[]> = {
+  node: [/^-e$/, /^--eval$/],
+  python: [/^-c$/],
+  python3: [/^-c$/],
+  perl: [/^-e$/],
+  ruby: [/^-e$/],
+  php: [/^-r$/],
+};
 
 /**
  * Security configuration
@@ -188,7 +209,7 @@ export interface SecurityConfig {
 export const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
   whitelist: DEFAULT_WHITELIST,
   blacklist: DEFAULT_BLACKLIST,
-  allowUnknownCommands: true,
+  allowUnknownCommands: false,
   sanitizeUserInput: true,
   maxCommandLength: 10000,
 };
@@ -253,7 +274,7 @@ export class SecurityValidator {
       };
     }
 
-    if (this.config.sanitizeUserInput) {
+    if (shellMode && this.config.sanitizeUserInput) {
       for (let i = 0; i < args.length; i++) {
         if (this.containsShellInjection(args[i])) {
           return {
@@ -268,7 +289,9 @@ export class SecurityValidator {
   }
 
   /**
-   * Validate a shell-mode command
+   * Validate a shell-mode command.
+   * Splits by safe chaining operators (&&, ||, |) and validates EVERY command
+   * in the chain, not just the first word. Blocks dangerous metacharacters.
    */
   private validateShellCommand(fullCommand: string): {
     valid: boolean;
@@ -282,15 +305,74 @@ export class SecurityValidator {
       };
     }
 
-    const firstWord = fullCommand.trim().split(/\s+/)[0];
-    if (this.isBlacklisted(firstWord)) {
-      return {
-        valid: false,
-        error: `Command '${firstWord}' is blacklisted for security reasons`,
-      };
+    const BLOCKED_METACHARS = [/;/, /`/, /\$\(/];
+    for (const metachar of BLOCKED_METACHARS) {
+      if (metachar.test(fullCommand)) {
+        return {
+          valid: false,
+          error: `Shell operator '${metachar.source}' is blocked for security reasons`,
+        };
+      }
+    }
+
+    const segments = fullCommand.split(/\s*(&&|\|\||\|)\s*/);
+    const subCommands: string[] = [];
+    for (let i = 0; i < segments.length; i += 2) {
+      const cmd = segments[i].trim();
+      if (cmd) subCommands.push(cmd);
+    }
+
+    if (subCommands.length === 0) {
+      return { valid: false, error: 'No valid command found' };
+    }
+
+    for (const subCmd of subCommands) {
+      const firstWord = subCmd.trim().split(/\s+/)[0];
+      if (!firstWord) continue;
+
+      if (this.isBlacklisted(firstWord)) {
+        return {
+          valid: false,
+          error: `Command '${firstWord}' is blacklisted for security reasons`,
+        };
+      }
+
+      if (!this.config.allowUnknownCommands && !this.isWhitelisted(firstWord)) {
+        return {
+          valid: false,
+          error: `Command '${firstWord}' is not in the whitelist`,
+        };
+      }
+
+      const rceError = this.checkInterpreterRceFlags(firstWord, subCmd);
+      if (rceError) {
+        return { valid: false, error: rceError };
+      }
     }
 
     return { valid: true };
+  }
+
+  /**
+   * Check if a whitelisted interpreter is called with RCE-enabling flags.
+   * Prevents: node -e "code", python -c "code", perl -e "code", ruby -e "code"
+   */
+  private checkInterpreterRceFlags(
+    command: string,
+    fullCommand: string
+  ): string | null {
+    const patterns = INTERPRETER_RCE_FLAGS[command];
+    if (!patterns) return null;
+
+    const parts = fullCommand.trim().split(/\s+/);
+    for (let i = 1; i < parts.length; i++) {
+      for (const flagPattern of patterns) {
+        if (flagPattern.test(parts[i])) {
+          return `Interpreter '${command}' flag '${parts[i]}' allows arbitrary code execution and is blocked`;
+        }
+      }
+    }
+    return null;
   }
 
   private isInList(command: string, list: string[]): boolean {

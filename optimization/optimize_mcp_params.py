@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
 Ling-term-mcp 参数优化配置
-使用 LingMinOpt 框架优化 MCP Server 性能参数
+使用 lingminopt 框架优化 MCP Server 性能参数
 """
 
 import sys
 import os
 from pathlib import Path
 
-# 添加 LingMinOpt 路径 - 支持多种安装方式
+# 添加 lingminopt 路径 - 支持多种安装方式
 lingminopt_paths = [
-    Path(__file__).parent.parent.parent / "LingMinOpt",
-    Path("/home/ai/LingMinOpt"),
+    Path(__file__).parent.parent.parent / "lingminopt",
+    Path("/home/ai/lingminopt"),
 ]
 
 for lingminopt_path in lingminopt_paths:
     if lingminopt_path.exists():
         sys.path.insert(0, str(lingminopt_path))
-        print(f"✅ 使用 LingMinOpt 路径: {lingminopt_path}")
+        print(f"✅ 使用 lingminopt 路径: {lingminopt_path}")
         break
 
 from lingminopt import MinimalOptimizer, SearchSpace, ExperimentConfig

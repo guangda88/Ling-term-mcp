@@ -14,13 +14,13 @@ export const LING_FAMILY_MEMBERS: readonly LingMember[] = [
   {
     name: '灵通',
     englishName: 'lingflow',
-    directory: '/home/ai/LingFlow',
+    directory: '/home/ai/lingflow',
     role: 'AI生态平台',
   },
   {
     name: '灵克',
     englishName: 'lingclaude',
-    directory: '/home/ai/LingClaude',
+    directory: '/home/ai/lingclaude',
     role: 'AI编程助手',
   },
   {
@@ -32,7 +32,7 @@ export const LING_FAMILY_MEMBERS: readonly LingMember[] = [
   {
     name: '灵知',
     englishName: 'lingzhi',
-    directory: '/home/ai/zhineng-knowledge-system',
+    directory: '/home/ai/lingzhi',
     role: '知识管理系统',
   },
   {
@@ -44,43 +44,43 @@ export const LING_FAMILY_MEMBERS: readonly LingMember[] = [
   {
     name: '灵通+',
     englishName: 'lingflow_plus',
-    directory: '/home/ai/LingFlow_plus',
+    directory: '/home/ai/lingflow_plus',
     role: '灵族协调者',
   },
   {
     name: '灵犀',
     englishName: 'lingxi',
-    directory: '/home/ai/Ling-term-mcp',
+    directory: '/home/ai/lingxi',
     role: 'MCP终端服务器',
   },
   {
     name: '灵信',
     englishName: 'lingmessage',
-    directory: '/home/ai/LingMessage',
+    directory: '/home/ai/lingmessage',
     role: '消息总线',
   },
   {
     name: '灵网',
     englishName: 'lingweb',
-    directory: '/home/ai/LingWeb',
+    directory: '/home/ai/lingweb',
     role: '全栈网站开发',
   },
   {
     name: '灵极优',
     englishName: 'lingminopt',
-    directory: '/home/ai/LingMinOpt',
+    directory: '/home/ai/lingminopt',
     role: '极简自优化框架',
   },
   {
     name: '灵扬',
     englishName: 'lingyang',
-    directory: '/home/ai/LingYang',
+    directory: '/home/ai/lingyang',
     role: '对外联络宣传',
   },
   {
     name: '智桥',
     englishName: 'zhibridge',
-    directory: '/home/ai/zhineng-bridge',
+    directory: '/home/ai/zhibridge',
     role: '跨平台通信桥梁',
   },
 ] as const;

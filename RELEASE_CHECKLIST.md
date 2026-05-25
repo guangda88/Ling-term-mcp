@@ -2,7 +2,7 @@
 
 ## ✅ Completed Tasks
 
-- [x] Complete LingMinOpt parameter optimization
+- [x] Complete lingminopt parameter optimization
 - [x] Add security validation (whitelist, blacklist, pattern detection)
 - [x] Add performance monitoring (metrics, tracking, reports)
 - [x] Write unit tests (46 tests, all passing)
@@ -27,6 +27,7 @@
 ### 2. Create GitHub Release
 
 **Option 1: Using GitHub CLI (recommended)**
+
 ```bash
 # Install GitHub CLI (if not already installed)
 # https://cli.github.com/
@@ -41,6 +42,7 @@ gh release create v1.0.0 \
 ```
 
 **Option 2: Manual via GitHub Web Interface**
+
 1. Go to https://github.com/guangda/ling-term-mcp/releases/new
 2. Tag: `v1.0.0`
 3. Title: `Ling-term-mcp v1.0.0 - Initial Release`
@@ -63,6 +65,7 @@ npm view ling-term-mcp
 ### 4. Update README with Installation Links
 
 After publishing, update README.md with:
+
 - Add npm install badge: `[![npm version](https://badge.fury.io/js/ling-term-mcp.svg)](https://www.npmjs.com/package/ling-term-mcp)`
 - Update installation command to: `npm install ling-term-mcp`
 

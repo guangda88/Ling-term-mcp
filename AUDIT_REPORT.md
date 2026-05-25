@@ -1,7 +1,7 @@
 # Ling-term-mcp (灵犀) 全面审计报告
 
 **审计日期**: 2026-03-31
-**审计范围**: 源码质量、安全性、架构、测试、文档、包配置、LingFlow 工作流
+**审计范围**: 源码质量、安全性、架构、测试、文档、包配置、lingflow 工作流
 **审计版本**: v1.0.0
 **审计状态**: 已完成
 
@@ -9,15 +9,15 @@
 
 ## 审计总览
 
-| 类别 | 状态 | 严重问题 | 中等问题 | 轻微问题 |
-|------|------|----------|----------|----------|
-| 代码质量 | ✅ 通过 | 0 | 2 | 4 |
-| 安全性 | ✅ 已修复 | 2 (已修复) | 3 | 1 |
-| 架构设计 | ✅ 良好 | 0 | 1 | 2 |
-| 测试覆盖 | ✅ 通过 | 0 | 2 | 1 |
-| 包配置 | ✅ 已修复 | 0 | 0 | 1 |
-| 文档一致性 | ✅ 已修复 | 0 | 3 | 3 |
-| LingFlow 工作流 | ✅ 已修复 | 0 | 1 | 1 |
+| 类别            | 状态      | 严重问题   | 中等问题 | 轻微问题 |
+| --------------- | --------- | ---------- | -------- | -------- |
+| 代码质量        | ✅ 通过   | 0          | 2        | 4        |
+| 安全性          | ✅ 已修复 | 2 (已修复) | 3        | 1        |
+| 架构设计        | ✅ 良好   | 0          | 1        | 2        |
+| 测试覆盖        | ✅ 通过   | 0          | 2        | 1        |
+| 包配置          | ✅ 已修复 | 0          | 0        | 1        |
+| 文档一致性      | ✅ 已修复 | 0          | 3        | 3        |
+| lingflow 工作流 | ✅ 已修复 | 0          | 1        | 1        |
 
 ---
 
@@ -49,14 +49,14 @@
 
 ### 1.5 代码量统计
 
-| 模块 | 文件 | 行数 |
-|------|------|------|
-| src/security/ | 1 | 327 |
-| src/monitoring/ | 1 | 310 |
-| src/sessions/ | 2 | 234 |
-| src/tools/ | 5 | 339 |
-| src/ (根) | 3 | 151 |
-| **总计** | **12** | **1,361** |
+| 模块            | 文件   | 行数      |
+| --------------- | ------ | --------- |
+| src/security/   | 1      | 327       |
+| src/monitoring/ | 1      | 310       |
+| src/sessions/   | 2      | 234       |
+| src/tools/      | 5      | 339       |
+| src/ (根)       | 3      | 151       |
+| **总计**        | **12** | **1,361** |
 
 ---
 
@@ -129,6 +129,7 @@ const DATA_FILE = path.join(process.cwd(), '.ling-term-mcp', 'sessions.json');
 **评价**: ✅ 良好
 
 服务器遵循标准 MCP 模式：
+
 1. `createServer()` → 注册 ListTools + CallTools handler
 2. 工具定义与处理器封装为 `{ definition, handler }` 对象
 3. StdioServerTransport 通信
@@ -150,6 +151,7 @@ cli.ts → index.ts → tools/*.{ts}
 #### ARCH-1: `src/utils/` 目录为空
 
 预留的工具函数目录为空，所有工具函数直接写在各模块中。建议：
+
 - 将 `sanitizeInput`、`containsShellInjection` 等通用函数提取到 `utils/`
 - 或在 README/AGENTS.md 中说明该目录为预留扩展
 
@@ -169,20 +171,21 @@ cli.ts → index.ts → tools/*.{ts}
 
 ### 4.1 测试概况
 
-| 指标 | 值 |
-|------|-----|
-| 测试文件 | 5 |
-| 测试用例 | 46 |
-| 通过率 | 100% |
+| 指标     | 值            |
+| -------- | ------------- |
+| 测试文件 | 5             |
+| 测试用例 | 46            |
+| 通过率   | 100%          |
 | 语句覆盖 | 89% (191/215) |
-| 分支覆盖 | 66% (48/73) |
-| 函数覆盖 | 91% (40/44) |
+| 分支覆盖 | 66% (48/73)   |
+| 函数覆盖 | 91% (40/44)   |
 
 ### 🟡 中等问题
 
 #### TEST-1: `execute_command.ts` 分支覆盖仅 62%
 
 10/16 分支被覆盖。未覆盖的分支包括：
+
 - 错误处理中的 `stderr` 输出路径
 - `cmdArgs` 为空数组与未定义的边界情况
 - 命令执行超时路径
@@ -204,6 +207,7 @@ cli.ts → index.ts → tools/*.{ts}
 ### 5.1 package.json
 
 **已修复的关键问题**:
+
 - ✅ 移除 `"type": "module"`（与 CommonJS 编译输出冲突，导致 `npx ling-term-mcp` 无法运行）
 - ✅ 添加 `uuid` 到 dependencies
 - ✅ `files` 字段已包含 `CHANGELOG.md`
@@ -213,13 +217,13 @@ cli.ts → index.ts → tools/*.{ts}
 
 ### 5.2 打包验证
 
-| 检查项 | 结果 |
-|--------|------|
-| `npm pack` 生成 | ✅ 23.8 kB, 52 files |
-| 本地安装测试 | ✅ `npx ling-term-mcp` 启动成功 |
+| 检查项          | 结果                                          |
+| --------------- | --------------------------------------------- |
+| `npm pack` 生成 | ✅ 23.8 kB, 52 files                          |
+| 本地安装测试    | ✅ `npx ling-term-mcp` 启动成功               |
 | 不包含源码/测试 | ✅ 仅 dist/, README.md, LICENSE, CHANGELOG.md |
-| .d.ts 类型定义 | ✅ 包含 |
-| Source maps | ✅ 包含 |
+| .d.ts 类型定义  | ✅ 包含                                       |
+| Source maps     | ✅ 包含                                       |
 
 ### ℹ️ 轻微问题
 
@@ -283,13 +287,13 @@ args: [new URL('../dist/index.js', import.meta.url).pathname],
 
 ---
 
-## 7. LingFlow 工作流审计
+## 7. lingflow 工作流审计
 
 ### 🟡 中等问题
 
 #### WF-1: 工作流 `workspace` 路径过时 — ✅ 已修复
 
-已更新为 `/home/ai/Ling-term-mcp`。
+已更新为 `/home/ai/lingxi`。
 
 #### WF-2: 工作流描述了未实现的工具
 
@@ -314,20 +318,20 @@ docker push registry.example.com/ling-term-mcp:latest
 
 ## 8. 已修复问题汇总（本次审计中已修复）
 
-| # | 问题 | 修复措施 |
-|---|------|----------|
-| 1 | ESLint ESM 兼容错误 | `.eslintrc.js` → `.eslintrc.cjs` |
-| 2 | ESLint 测试文件解析错误 | 移除 `parserOptions.project` |
-| 3 | `uuid` 运行时依赖缺失 | 添加到 `dependencies` |
-| 4 | 未使用的 `ts-node` | 从 `devDependencies` 移除 |
-| 5 | `"type": "module"` 与 CJS 编译冲突 | 移除 `"type": "module"` |
-| 6 | `npm audit` 3 个漏洞 | `npm audit fix` → 0 漏洞 |
-| 7 | `rm`/`rmdir` 同时在白名单和黑名单 | 从白名单移除 |
-| 8 | README 配置示例使用硬编码路径 | 更新为 `npx -y ling-term-mcp` |
-| 9 | examples/ 配置使用硬编码路径 | 更新为 `npx` |
-| 10 | CI Actions 版本过旧 (@v3) | 更新为 @v4 |
-| 11 | `files` 缺少 `CHANGELOG.md` | 已添加 |
-| 12 | 11 个文件格式不一致 | 已执行 Prettier 格式化 |
+| #   | 问题                               | 修复措施                         |
+| --- | ---------------------------------- | -------------------------------- |
+| 1   | ESLint ESM 兼容错误                | `.eslintrc.js` → `.eslintrc.cjs` |
+| 2   | ESLint 测试文件解析错误            | 移除 `parserOptions.project`     |
+| 3   | `uuid` 运行时依赖缺失              | 添加到 `dependencies`            |
+| 4   | 未使用的 `ts-node`                 | 从 `devDependencies` 移除        |
+| 5   | `"type": "module"` 与 CJS 编译冲突 | 移除 `"type": "module"`          |
+| 6   | `npm audit` 3 个漏洞               | `npm audit fix` → 0 漏洞         |
+| 7   | `rm`/`rmdir` 同时在白名单和黑名单  | 从白名单移除                     |
+| 8   | README 配置示例使用硬编码路径      | 更新为 `npx -y ling-term-mcp`    |
+| 9   | examples/ 配置使用硬编码路径       | 更新为 `npx`                     |
+| 10  | CI Actions 版本过旧 (@v3)          | 更新为 @v4                       |
+| 11  | `files` 缺少 `CHANGELOG.md`        | 已添加                           |
+| 12  | 11 个文件格式不一致                | 已执行 Prettier 格式化           |
 
 ---
 

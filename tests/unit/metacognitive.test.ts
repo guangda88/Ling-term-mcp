@@ -3,7 +3,7 @@
  */
 
 import { performMetacognitiveAudit } from '../../src/audit/metacognitive';
-import type { DecisionRecord } from '@ling/protocol';
+import type { DecisionRecord } from '../../src/protocol/types';
 
 function makeDecision(overrides: Partial<DecisionRecord> = {}): DecisionRecord {
   return {

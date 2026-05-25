@@ -5,11 +5,13 @@
 ## ✅ 全部推送完成
 
 ### Gitea 仓库
+
 **地址**: http://zhinenggitea.iepose.cn/guangda/ling-term-mcp.git
 **状态**: ✅ 已成功推送
 **分支**: master
 
 ### GitHub 仓库
+
 **地址**: https://github.com/guangda88/Ling-tem-mcp.git
 **状态**: ✅ 已成功推送
 **分支**: master
@@ -40,6 +42,7 @@ a4ed37e feat: Prepare for npm publication with optimized configuration
 ## 🔧 Git 配置
 
 ### 当前 Git Remotes
+
 ```
 gitea   http://zhinenggitea.iepose.cn/guangda/ling-term-mcp.git (fetch)
 gitea   http://zhinenggitea.iepose.cn/guangda/ling-term-mcp.git (push)
@@ -52,11 +55,13 @@ origin  https://github.com/guangda88/Ling-tem-mcp.git (push)
 ## ✅ 仓库访问
 
 ### Gitea
+
 - **仓库主页**: http://zhinenggitea.iepose.cn/guangda/ling-term-mcp
 - **提交历史**: http://zhinenggitea.iepose.cn/guangda/ling-term-mcp/commits/master
 - **克隆命令**: `git clone http://zhinenggitea.iepose.cn/guangda/ling-term-mcp.git`
 
 ### GitHub
+
 - **仓库主页**: https://github.com/guangda88/Ling-tem-mcp
 - **提交历史**: https://github.com/guangda88/Ling-tem-mcp/commits/master
 - **克隆命令**: `git clone https://github.com/guangda88/Ling-tem-mcp.git`
@@ -70,6 +75,7 @@ origin  https://github.com/guangda88/Ling-tem-mcp.git (push)
 访问: https://github.com/guangda88/Ling-tem-mcp/releases/new
 
 **Release 信息**:
+
 - **标签**: `v1.0.0`
 - **标题**: `Ling-term-mcp v1.0.0 - Initial Release`
 - **描述**: 使用 `RELEASE_NOTES.md` 的完整内容
@@ -92,12 +98,14 @@ npm view ling-term-mcp
 由于 GitHub 仓库名称与项目名称不一致，可以考虑：
 
 **选项 A**: 在 GitHub 重命名仓库为 `ling-term-mcp`
+
 - 访问: https://github.com/guangda88/Ling-tem-mcp/settings
 - 点击 "Rename repository"
 - 新名称: `ling-term-mcp`
 - 更新 git remote: `git remote set-url origin https://github.com/guangda88/ling-term-mcp.git`
 
 **选项 B**: 保持当前仓库名称
+
 - 更新 package.json 的 repository.url 为当前 URL
 - 项目仍然可以通过 Gitea 获取正确名称的仓库
 
@@ -106,6 +114,7 @@ npm view ling-term-mcp
 ## 📦 npm 发布准备
 
 ### 当前包信息
+
 - **包名**: `ling-term-mcp`
 - **版本**: `1.0.0`
 - **包大小**: 22.2 kB
@@ -114,8 +123,9 @@ npm view ling-term-mcp
 ### 发布前最终检查
 
 运行验证脚本：
+
 ```bash
-cd /home/ai/Ling-term-mcp
+cd /home/ai/lingxi
 npm run verify
 ```
 
@@ -129,7 +139,7 @@ npm run verify
 
 - [x] 完成代码开发
 - [x] 所有测试通过（46/46）
-- [x] 参数优化完成（LingMinOpt）
+- [x] 参数优化完成（lingminopt）
 - [x] 创建发布文档
 - [x] 推送到 Gitea
 - [x] 推送到 GitHub

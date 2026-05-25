@@ -38,14 +38,14 @@ describe('identity registry', () => {
     expect(isKnownMember('unknown')).toBe(false);
     expect(isKnownMember('')).toBe(false);
     expect(isKnownMember('crush')).toBe(false);
-    expect(isKnownMember('LingXi')).toBe(false);
+    expect(isKnownMember('stranger')).toBe(false);
   });
 
   it('should return member details for known callers', () => {
     const lingxi = getMember('lingxi');
     expect(lingxi).toBeDefined();
     expect(lingxi!.name).toBe('灵犀');
-    expect(lingxi!.directory).toBe('/home/ai/Ling-term-mcp');
+    expect(lingxi!.directory).toBe('/home/ai/lingxi');
   });
 
   it('should return undefined for unknown callers', () => {

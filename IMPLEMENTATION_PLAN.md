@@ -1,6 +1,6 @@
 # Ling-term-mcp（灵犀）详细实施计划
 
-**基于 LingMinOpt + LingFlow 架构**
+**基于 lingminopt + lingflow 架构**
 **版本**: 1.0.0
 **创建日期**: 2026-03-24
 **预计完成**: 2026-04-28（5 周）
@@ -9,14 +9,14 @@
 
 ## 📋 执行摘要
 
-本文档详细规划了 Ling-term-mcp（灵犀）项目的开发流程，基于 LingMinOpt 自动优化框架和 LingFlow 工作流执行系统，确保精细计划、准确实施、严格测试。
+本文档详细规划了 Ling-term-mcp（灵犀）项目的开发流程，基于 lingminopt 自动优化框架和 lingflow 工作流执行系统，确保精细计划、准确实施、严格测试。
 
 ### 核心原则
 
 1. **精细计划**: 每个任务都有明确的输入、输出和验收标准
-2. **准确实施**: 使用 LingFlow 工作流自动执行，减少人为错误
+2. **准确实施**: 使用 lingflow 工作流自动执行，减少人为错误
 3. **严格测试**: 单元测试、集成测试、E2E 测试，覆盖率 >= 85%
-4. **数据驱动**: 使用 LingMinOpt 自动优化关键参数
+4. **数据驱动**: 使用 lingminopt 自动优化关键参数
 
 ---
 
@@ -86,10 +86,12 @@
 **任务 1.1: 创建项目结构**
 
 **输入**:
-- 工作目录: `/home/ai/zhineng-bridge/mcp-server`
+
+- 工作目录: `/home/ai/zhibridge/mcp-server`
 - 项目模板: TypeScript + Node.js 18+
 
 **输出**:
+
 ```
 mcp-server/
 ├── src/
@@ -108,52 +110,59 @@ mcp-server/
 ```
 
 **验收标准**:
+
 - [ ] 所有目录创建成功
 - [ ] TypeScript 配置文件存在 (`tsconfig.json`)
 - [ ] package.json 配置完成
 - [ ] .gitignore 文件配置
 
-**执行方式**: LingFlow `task-runner` 技能
+**执行方式**: lingflow `task-runner` 技能
 
 ---
 
 **任务 1.2: 安装依赖**
 
 **输入**:
+
 - package.json
 
 **输出**:
+
 - @modelcontextprotocol/sdk 安装
 - TypeScript 类型定义安装
 - 测试框架 (Jest) 安装
 - 其他依赖安装
 
 **验收标准**:
+
 - [ ] npm install 无错误
 - [ ] 所有依赖正确安装
 - [ ] node_modules 目录存在
 - [ ] package-lock.json 生成
 
-**执行方式**: LingFlow `task-runner` 技能
+**执行方式**: lingflow `task-runner` 技能
 
 ---
 
 **任务 1.3: 配置 TypeScript**
 
 **输入**:
+
 - TypeScript 最佳实践
 - 项目需求（ES2022, strict mode）
 
 **输出**:
+
 - tsconfig.json 配置文件
 
 **验收标准**:
+
 - [ ] target: ES2022
 - [ ] module: commonjs
 - [ ] strict: true
 - [ ] 类型检查正常工作
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -162,59 +171,69 @@ mcp-server/
 **任务 1.4: 实现 MCP Server 基础框架**
 
 **输入**:
+
 - @modelcontextprotocol/sdk 文档
 - Chrome DevTools MCP 示例
 
 **输出**:
+
 - `src/index.ts` - MCP Server 入口文件
 - Server 初始化
 - Stdio Transport 连接
 - Tool Registry 基础实现
 
 **验收标准**:
+
 - [ ] MCP Server 可以启动
 - [ ] 可以列出工具（即使为空）
 - [ ] 无 TypeScript 错误
 - [ ] 可以响应 ping 消息
 
 **代码模板**:
-```typescript
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-const server = new Server({
-  name: "ling-term-mcp",
-  version: "1.0.0"
-}, {
-  capabilities: {
-    tools: {}
+```typescript
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+
+const server = new Server(
+  {
+    name: 'ling-term-mcp',
+    version: '1.0.0',
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
   }
-});
+);
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
 ```
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
 **任务 1.5: 配置 CI/CD**
 
 **输入**:
+
 - GitHub Actions 最佳实践
 - 测试自动化需求
 
 **输出**:
+
 - `.github/workflows/ci.yml`
 
 **验收标准**:
+
 - [ ] push 时自动运行测试
 - [ ] PR 时自动检查代码质量
 - [ ] 构建失败立即通知
 - [ ] 测试覆盖率报告生成
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -223,38 +242,44 @@ await server.connect(transport);
 **任务 1.6: 验证环境搭建**
 
 **输入**:
+
 - 已完成的环境搭建
 
 **输出**:
+
 - 环境验证报告
 - 已知问题清单
 
 **验收标准**:
+
 - [ ] TypeScript 编译通过
 - [ ] 可以启动 MCP Server
 - [ ] 测试框架正常运行
 - [ ] 所有依赖正确加载
 
-**执行方式**: LingFlow `test-runner` 技能
+**执行方式**: lingflow `test-runner` 技能
 
 ---
 
 **任务 1.7: 编写 README**
 
 **输入**:
+
 - 项目架构
 - 快速开始指南
 
 **输出**:
+
 - `README.md` - 项目文档
 
 **验收标准**:
+
 - [ ] 项目简介完整
 - [ ] 安装步骤清晰
 - [ ] 使用示例可运行
 - [ ] 架构图清晰
 
-**执行方式**: LingFlow `task-runner` 技能
+**执行方式**: lingflow `task-runner` 技能
 
 ---
 
@@ -282,21 +307,25 @@ await server.connect(transport);
 **任务 2.1: 实现 execute_command 工具**
 
 **输入**:
+
 - MCP 工具定义规范
 - 终端命令执行需求
 
 **输出**:
+
 - `src/tools/execute_command.ts`
 - Zod 参数验证 Schema
 - 错误处理机制
 
 **验收标准**:
+
 - [ ] 可以执行简单命令（ls, pwd）
 - [ ] 参数验证正常工作
 - [ ] 错误处理完善
 - [ ] 单元测试通过
 
 **工具定义**:
+
 ```typescript
 {
   name: "execute_command",
@@ -313,47 +342,53 @@ await server.connect(transport);
 }
 ```
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
 **任务 2.2: 实现 sync_terminal 工具**
 
 **输入**:
+
 - 终端状态同步需求
 - 会话管理接口
 
 **输出**:
+
 - `src/tools/sync_terminal.ts`
 - 终端状态采集
 - 状态返回格式
 
 **验收标准**:
+
 - [ ] 可以获取当前工作目录
 - [ ] 可以获取环境变量
 - [ ] 状态返回格式正确
 - [ ] 单元测试通过
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
 **任务 2.3: 实现 list_sessions 工具**
 
 **输入**:
+
 - 会话管理需求
 - 会话数据结构
 
 **输出**:
+
 - `src/tools/list_sessions.ts`
 - 会话列表查询
 
 **验收标准**:
+
 - [ ] 可以列出所有活跃会话
 - [ ] 返回格式符合 MCP 标准
 - [ ] 单元测试通过
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -362,43 +397,49 @@ await server.connect(transport);
 **任务 2.4: 实现 Session Manager**
 
 **输入**:
+
 - 会话生命周期管理需求
 - 会话数据结构设计
 
 **输出**:
+
 - `src/sessions/manager.ts`
 - `src/sessions/store.ts`
 - 会话创建、销毁、查询、持久化
 
 **验收标准**:
+
 - [ ] 可以创建会话
 - [ ] 可以销毁会话
 - [ ] 可以查询会话
 - [ ] 会话持久化正常
 - [ ] 单元测试覆盖率 > 80%
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
 **任务 2.5: 实现会话持久化**
 
 **输入**:
+
 - 会话数据结构
 - 存储需求（SQLite）
 
 **输出**:
+
 - `src/sessions/store.ts`
 - 数据库表结构
 - CRUD 操作
 
 **验收标准**:
+
 - [ ] SQLite 数据库正常工作
 - [ ] 会话数据正确保存
 - [ ] 会话数据正确读取
 - [ ] 单元测试通过
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -407,21 +448,24 @@ await server.connect(transport);
 **任务 2.6: 编写核心工具单元测试**
 
 **输入**:
+
 - 已实现的工具代码
 - 测试需求（覆盖率 >= 70%）
 
 **输出**:
+
 - `tests/unit/tools/execute_command.test.ts`
 - `tests/unit/tools/sync_terminal.test.ts`
 - `tests/unit/tools/list_sessions.test.ts`
 - `tests/unit/sessions/manager.test.ts`
 
 **验收标准**:
+
 - [ ] 所有单元测试通过
 - [ ] 代码覆盖率 >= 70%
 - [ ] 无 TypeScript 错误
 
-**执行方式**: LingFlow `test-runner` 技能
+**执行方式**: lingflow `test-runner` 技能
 
 ---
 
@@ -435,11 +479,11 @@ await server.connect(transport);
 
 ---
 
-## 📅 第三阶段：LingMinOpt 参数优化（第 3 周，前 3 天）
+## 📅 第三阶段：lingminopt 参数优化（第 3 周，前 3 天）
 
 ### 目标
 
-使用 LingMinOpt 优化 MCP Server 性能参数
+使用 lingminopt 优化 MCP Server 性能参数
 
 ### 详细任务清单
 
@@ -448,19 +492,23 @@ await server.connect(transport);
 **任务 3.1: 创建搜索空间**
 
 **输入**:
+
 - MCP Server 配置参数
-- LingMinOpt SearchSpace API
+- lingminopt SearchSpace API
 
 **输出**:
+
 - `optimization/search_space.py`
 - 参数定义和取值范围
 
 **验收标准**:
+
 - [ ] 所有可优化参数已定义
 - [ ] 取值范围合理
 - [ ] 搜索空间大小合适
 
 **参数列表**:
+
 - max_connections: [50, 100, 200, 500]
 - ping_interval: [5, 10, 30, 60]
 - command_timeout: [30, 60, 120, 300]
@@ -468,26 +516,30 @@ await server.connect(transport);
 - session_cache_ttl: [300, 600, 1800, 3600]
 - log_level: ["debug", "info", "warn", "error"]
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
 **任务 3.2: 创建评估函数**
 
 **输入**:
+
 - 搜索空间定义
 - 性能指标需求
 
 **输出**:
+
 - `optimization/evaluator.py`
 - 综合评分算法
 
 **验收标准**:
+
 - [ ] 评估函数可以运行
 - [ ] 评分逻辑正确
 - [ ] 权重分配合理
 
 **评分公式**:
+
 ```
 Score = 0.4 * response_time_score
       + 0.3 * throughput_score
@@ -496,29 +548,32 @@ Score = 0.4 * response_time_score
       + 0.05 * log_score
 ```
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
 #### Day 2: 运行优化
 
-**任务 3.3: 运行 LingMinOpt 优化**
+**任务 3.3: 运行 lingminopt 优化**
 
 **输入**:
+
 - 搜索空间定义
 - 评估函数
-- LingMinOpt 配置
+- lingminopt 配置
 
 **输出**:
+
 - `optimization/results.json`
 - `optimization/report.md`
 
 **验收标准**:
+
 - [ ] 优化成功完成
 - [ ] 结果文件生成
 - [ ] 报告可读性强
 
-**执行方式**: LingFlow `task-runner` 技能
+**执行方式**: lingflow `task-runner` 技能
 
 ---
 
@@ -527,19 +582,22 @@ Score = 0.4 * response_time_score
 **任务 3.4: 应用优化参数**
 
 **输入**:
+
 - 优化结果
 - 配置文件模板
 
 **输出**:
+
 - `config/optimized.json`
 - 配置文档更新
 
 **验收标准**:
+
 - [ ] 优化参数正确应用
 - [ ] 配置文件格式正确
 - [ ] 文档更新完整
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -608,13 +666,13 @@ Score = 0.4 * response_time_score
 
 ---
 
-## 🔄 LingFlow 工作流执行
+## 🔄 lingflow 工作流执行
 
 ### 启动完整工作流
 
 ```bash
 # 进入项目目录
-cd /home/ai/zhineng-bridge/mcp-server
+cd /home/ai/zhibridge/mcp-server
 
 # 执行完整开发工作流
 lingflow workflow .lingflow/workflows/develop_ling_term_mcp.yaml
@@ -637,13 +695,13 @@ lingflow status develop_ling_term_mcp
 
 ---
 
-## 🔍 LingMinOpt 优化
+## 🔍 lingminopt 优化
 
 ### 手动运行优化
 
 ```bash
 # 进入优化目录
-cd /home/ai/zhineng-bridge/mcp-server/optimization
+cd /home/ai/zhibridge/mcp-server/optimization
 
 # 运行优化
 python3 optimize_mcp_params.py
@@ -681,7 +739,7 @@ cat optimization_report.md
 
 ### 第三阶段验收
 
-- [ ] LingMinOpt 优化完成
+- [ ] lingminopt 优化完成
 - [ ] 性能改善 >= 10%
 - [ ] 优化参数正确应用
 
@@ -711,7 +769,7 @@ cat optimization_report.md
 
 **项目负责人**: Guangda
 **技术栈**: TypeScript + Node.js + MCP SDK
-**框架**: LingMinOpt + LingFlow
+**框架**: lingminopt + lingflow
 **项目名称**: Ling-term-mcp（灵犀）
 
 ---

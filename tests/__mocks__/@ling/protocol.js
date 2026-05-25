@@ -5,4 +5,7 @@ var SourceType;
   SourceType['GENERATED'] = 'generated';
 })(SourceType || (SourceType = {}));
 
-module.exports = { SourceType };
+module.exports = {
+  SourceType,
+  DecisionRecord: {},
+};

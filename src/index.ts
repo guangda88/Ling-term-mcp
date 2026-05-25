@@ -14,6 +14,7 @@ import { syncTerminal } from './tools/sync_terminal.js';
 import { listSessions } from './tools/list_sessions.js';
 import { createSession } from './tools/create_session.js';
 import { destroySession } from './tools/destroy_session.js';
+import { auditReport } from './tools/audit_report.js';
 
 /**
  * MCP Server configuration
@@ -49,6 +50,7 @@ export function createServer(): Server {
         listSessions.definition,
         createSession.definition,
         destroySession.definition,
+        auditReport.definition,
       ],
     };
   });
@@ -69,6 +71,8 @@ export function createServer(): Server {
           return await createSession.handler(args);
         case 'destroy_session':
           return await destroySession.handler(args);
+        case 'audit_report':
+          return await auditReport.handler(args);
         default:
           throw new Error(`Unknown tool: ${name}`);
       }

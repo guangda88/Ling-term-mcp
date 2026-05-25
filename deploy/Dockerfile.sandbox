@@ -1,0 +1,18 @@
+FROM node:20-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip python3-venv \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g tsx typescript
+
+RUN useradd -m -s /bin/bash sandbox
+USER sandbox
+WORKDIR /workspace
+
+COPY sandbox-runner.mjs /opt/sandbox-runner.mjs
+
+EXPOSE 9531
+
+CMD ["node", "/opt/sandbox-runner.mjs"]

@@ -10,16 +10,16 @@
 
 ### Development Phase: **100% Complete**
 
-| Phase | Status | Completion |
-|-------|--------|------------|
-| Initial Implementation | ✅ Complete | 100% |
-| Security Features | ✅ Complete | 100% |
-| Performance Monitoring | ✅ Complete | 100% |
-| Testing Suite | ✅ Complete | 100% |
-| Parameter Optimization | ✅ Complete | 100% |
-| Package Optimization | ✅ Complete | 100% |
-| Documentation | ✅ Complete | 100% |
-| Verification | ✅ Complete | 100% |
+| Phase                  | Status      | Completion |
+| ---------------------- | ----------- | ---------- |
+| Initial Implementation | ✅ Complete | 100%       |
+| Security Features      | ✅ Complete | 100%       |
+| Performance Monitoring | ✅ Complete | 100%       |
+| Testing Suite          | ✅ Complete | 100%       |
+| Parameter Optimization | ✅ Complete | 100%       |
+| Package Optimization   | ✅ Complete | 100%       |
+| Documentation          | ✅ Complete | 100%       |
+| Verification           | ✅ Complete | 100%       |
 
 ### Pre-Publication Verification: **10/10 Checks Passing** ✅
 
@@ -53,7 +53,7 @@
 
 ## 🎯 Optimization Results
 
-### LingMinOpt Configuration
+### lingminopt Configuration
 
 **Best Score**: 0.5770
 **Experiments**: 23
@@ -75,12 +75,12 @@
 
 ### Performance Metrics
 
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| Response Time | < 100ms | 87ms | ✅ |
-| Throughput | > 100 req/s | 124 req/s | ✅ |
-| Memory Usage | < 100MB | 76MB | ✅ |
-| Error Rate | < 1% | 0.3% | ✅ |
+| Metric        | Target      | Actual    | Status |
+| ------------- | ----------- | --------- | ------ |
+| Response Time | < 100ms     | 87ms      | ✅     |
+| Throughput    | > 100 req/s | 124 req/s | ✅     |
+| Memory Usage  | < 100MB     | 76MB      | ✅     |
+| Error Rate    | < 1%        | 0.3%      | ✅     |
 
 ---
 
@@ -123,6 +123,7 @@
 ## 📝 Documentation
 
 ### User Documentation
+
 - ✅ README.md - Project overview and quick start
 - ✅ docs/API.md - Complete API reference
 - ✅ docs/USER_GUIDE.md - User guide with examples
@@ -130,20 +131,24 @@
 - ✅ CHANGELOG.md - Version history
 
 ### Release Documentation
+
 - ✅ RELEASE_NOTES.md - v1.0.0 release notes
 - ✅ RELEASE_CHECKLIST.md - Publication checklist
 
 ### Examples
+
 - ✅ examples/basic-usage.ts - MCP SDK usage example
 - ✅ examples/cursor-config.json - Cursor configuration
 - ✅ examples/claude-config.json - Claude Desktop configuration
 
 ### GitHub Templates
+
 - ✅ .github/ISSUE_TEMPLATE/BUG_REPORT.md
 - ✅ .github/ISSUE_TEMPLATE/FEATURE_REQUEST.md
 - ✅ .github/PULL_REQUEST_TEMPLATE/PR_template.md
 
 ### Scripts
+
 - ✅ quickstart.sh - Automated setup script
 - ✅ scripts/verify-publish.ts - Pre-publication verification
 
@@ -177,7 +182,7 @@ a4ed37e feat: Prepare for npm publication with optimized configuration
 
 ### ✅ Completed
 
-- [x] Complete LingMinOpt parameter optimization
+- [x] Complete lingminopt parameter optimization
 - [x] Add security validation (whitelist, blacklist, pattern detection)
 - [x] Add performance monitoring (metrics, tracking, reports)
 - [x] Write unit tests (46 tests, all passing)
@@ -199,6 +204,7 @@ a4ed37e feat: Prepare for npm publication with optimized configuration
    - Add remote: `git remote add origin https://github.com/guangda/ling-term-mcp.git`
 
 2. **Push to GitHub**
+
    ```bash
    git push -u origin master
    ```
@@ -209,6 +215,7 @@ a4ed37e feat: Prepare for npm publication with optimized configuration
    - Description: Use content from `RELEASE_NOTES.md`
 
 4. **Publish to npm**
+
    ```bash
    npm login
    npm publish
@@ -229,7 +236,7 @@ a4ed37e feat: Prepare for npm publication with optimized configuration
 
 ### Unique Features
 
-1. **LingMinOpt Integration**: Automated parameter optimization with 4096-configuration search space
+1. **lingminopt Integration**: Automated parameter optimization with 4096-configuration search space
 2. **Comprehensive Security**: Multi-layer security validation with pattern detection
 3. **Performance Monitoring**: Built-in metrics tracking and reporting
 4. **Full TypeScript Support**: Complete type definitions and source maps
@@ -255,8 +262,8 @@ a4ed37e feat: Prepare for npm publication with optimized configuration
 
 ## 🙏 Acknowledgments
 
-- **LingMinOpt** - 极简自优化框架
-- **LingFlow** - 灵研流式AI框架
+- **lingminopt** - 极简自优化框架
+- **lingflow** - 灵研流式AI框架
 - **灵研** - 极简自主研究哲学
 - **Model Context Protocol** - MCP 标准协议
 
@@ -270,4 +277,4 @@ MIT License
 
 **Ling-term-mcp (灵犀) - 心有灵犀一点通，AI 精准操控终端** 🚀
 
-*Version: 1.0.0 | Status: Ready for Publication ✅*
+_Version: 1.0.0 | Status: Ready for Publication ✅_

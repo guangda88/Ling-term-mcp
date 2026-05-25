@@ -5,7 +5,7 @@
 
 import { checkBehavioralContracts } from '../../src/audit/contracts';
 import { generateSnapshot, hashOutput } from '../../src/audit/snapshot';
-import type { DecisionRecord } from '@ling/protocol';
+import type { DecisionRecord } from '../../src/protocol/types';
 
 function makeDecision(overrides: Partial<DecisionRecord> = {}): DecisionRecord {
   return {

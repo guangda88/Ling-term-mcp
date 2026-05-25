@@ -52,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Testing
 
 - **95 tests** (87 unit + 8 integration), all passing
-- **98% statement coverage**, 89% branches, 98% functions
+- **87% line coverage**, 72% branches, 83% functions
 - New integration test suite: full session lifecycle, shell mode, concurrent sessions, env isolation
 - 0 lint errors, clean TypeScript build
 
@@ -70,8 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Security
 
-- Command whitelist with 74 safe commands
-- Command blacklist with 41 dangerous commands (rm, sudo, chmod, etc.)
+- Command whitelist with 86 safe commands
+- Command blacklist with 36 dangerous commands (rm, sudo, chmod, etc.)
 - Dangerous pattern detection:
   - Shell injection (`; | & $ ( ) <> \`)
   - Privilege escalation (`chmod 777 /`, `&& rm -rf`)
@@ -113,7 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Optimization
 
-- **LingMinOpt integration** for parameter optimization
+- **lingminopt integration** for parameter optimization
 - Search space: 4096 possible configurations
 - Optimization completed in 47.05 seconds (23 experiments)
 - Best configuration:

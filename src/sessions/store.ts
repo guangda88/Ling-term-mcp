@@ -4,6 +4,7 @@
  */
 
 import * as fs from 'fs/promises';
+import * as os from 'os';
 import * as path from 'path';
 import type {
   DecisionRecord,
@@ -33,7 +34,9 @@ export interface Session {
 let sessions: Map<string, Session> = new Map();
 let initialized = false;
 
-const DATA_DIR = path.join(process.cwd(), '.ling-term-mcp');
+const DATA_DIR =
+  process.env.XDG_DATA_HOME ||
+  path.join(os.homedir(), '.local', 'share', 'ling-term-mcp');
 const DATA_FILE = path.join(DATA_DIR, 'sessions.json');
 
 /**
@@ -141,7 +144,11 @@ export async function appendDecisionRecord(
   }
   session.decision_log = log;
 
-  const violations = checkBehavioralContracts(record, log.slice(0, -1));
+  const violations = checkBehavioralContracts(
+    record,
+    log.slice(0, -1),
+    session.owner
+  );
   if (violations.length > 0) {
     const existing = session.behavioral_violations || [];
     session.behavioral_violations = [...existing, ...violations];

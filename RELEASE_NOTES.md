@@ -9,6 +9,7 @@ Ling-term-mcp (灵犀) v1.0.0 is now available! This is the first production-rea
 ## ✨ New Features
 
 ### Core MCP Tools
+
 - **execute_command**: Execute terminal commands with security validation
 - **sync_terminal**: Synchronize terminal state (working directory, environment)
 - **list_sessions**: List all active terminal sessions
@@ -16,6 +17,7 @@ Ling-term-mcp (灵犀) v1.0.0 is now available! This is the first production-rea
 - **destroy_session**: Terminate active sessions
 
 ### Security Features
+
 - **Command Whitelist**: Pre-defined list of 100+ safe commands
 - **Command Blacklist**: 50+ dangerous commands blocked (rm, sudo, etc.)
 - **Pattern Detection**: Detects shell injection, privilege escalation, fork bombs
@@ -23,6 +25,7 @@ Ling-term-mcp (灵犀) v1.0.0 is now available! This is the first production-rea
 - **Configurable Security**: AllowUnknownCommands, SanitizeUserInput, MaxCommandLength
 
 ### Performance Monitoring
+
 - **Execution Tracking**: Record timestamps and results
 - **Metrics Calculation**: Average, P50, P95, P99 percentiles
 - **Error Rate Tracking**: Per-command and overall error rates
@@ -34,7 +37,8 @@ Ling-term-mcp (灵犀) v1.0.0 is now available! This is the first production-rea
 
 ## 🔧 Technical Improvements
 
-### LingMinOpt Integration
+### lingminopt Integration
+
 - **Parameter Optimization**: 23 experiments completed
 - **Best Configuration**:
   ```json
@@ -52,6 +56,7 @@ Ling-term-mcp (灵犀) v1.0.0 is now available! This is the first production-rea
 - **Best Score**: 0.5770
 
 ### Testing Coverage
+
 - **Unit Tests**: 46/46 passing ✅
 - **Code Coverage**: 81.05% statements, 78.94% functions
 - **Test Categories**:
@@ -62,6 +67,7 @@ Ling-term-mcp (灵犀) v1.0.0 is now available! This is the first production-rea
   - Session management (5 tests)
 
 ### Package Optimization
+
 - **Package Size**: 23.8 kB (down from 49.7 kB)
 - **Package Files**: 52 files (down from 84)
 - **Clean Distribution**: Only includes dist/, README.md, LICENSE
@@ -127,24 +133,26 @@ npm install ling-term-mcp
 
 ## 📊 Performance Metrics
 
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| Response Time | < 100ms | 87ms | ✅ |
-| Throughput | > 100 req/s | 124 req/s | ✅ |
-| Memory Usage | < 100MB | 76MB | ✅ |
-| Error Rate | < 1% | 0.3% | ✅ |
+| Metric        | Target      | Actual    | Status |
+| ------------- | ----------- | --------- | ------ |
+| Response Time | < 100ms     | 87ms      | ✅     |
+| Throughput    | > 100 req/s | 124 req/s | ✅     |
+| Memory Usage  | < 100MB     | 76MB      | ✅     |
+| Error Rate    | < 1%        | 0.3%      | ✅     |
 
 ---
 
 ## 🔒 Security
 
 ### Default Whitelist (100+ commands)
+
 - `ls`, `pwd`, `cat`, `echo`, `grep`, `find`, `head`, `tail`
 - `git`, `npm`, `node`, `python`, `python3`
 - `mkdir`, `touch`, `cp`, `mv` (with restrictions)
 - And many more...
 
 ### Default Blacklist (50+ commands)
+
 - `rm -rf`, `sudo`, `su`, `chmod 777 /`
 - `dd`, `mkfs`, `fdisk`, `killall`
 - Shell injection patterns, fork bombs, `eval` and `exec`
@@ -184,8 +192,8 @@ npm start
 
 ## 🙏 Acknowledgments
 
-- **LingMinOpt** - 极简自优化框架
-- **LingFlow** - 灵研流式AI框架
+- **lingminopt** - 极简自优化框架
+- **lingflow** - 灵研流式AI框架
 - **Model Context Protocol** - MCP 标准协议
 - **灵研** - 极简自主研究哲学
 
@@ -206,4 +214,4 @@ MIT License - See [LICENSE](LICENSE) file
 
 **Ling-term-mcp (灵犀) - 心有灵犀一点通，AI 精准操控终端** 🚀
 
-*Version: 1.0.0 | Release Date: 2026-03-24*
+_Version: 1.0.0 | Release Date: 2026-03-24_

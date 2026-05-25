@@ -19,7 +19,7 @@
 - **会话快照**: 会话结束时生成完整的行为摘要和审计轨迹
 - **元认知审计**: 评估 AI 决策质量，检测推理偏差和模式异常
 - **性能监控**: 内置 PerformanceMonitor，实时追踪 P50/P95/P99 指标
-- **高覆盖测试**: 109 个测试，语句覆盖率 95%，分支覆盖率 86%
+- **高覆盖测试**: 178 个测试，行覆盖率 87%，分支覆盖率 72%
 
 ---
 
@@ -166,13 +166,12 @@ Ling-term-mcp/
 │       └── performance.ts    # 性能监控
 ├── tests/
 │   ├── unit/                 # Jest 单元测试
-│   ├── integration/          # Jest 集成测试
 │   ├── e2e/                  # Node.js E2E 测试
 │   └── stress/               # 压力测试
 ├── docs/
 │   ├── API.md
 │   └── USER_GUIDE.md
-└── .lingflow/                # LingFlow 工作流
+└── .lingflow/                # lingflow 工作流
 ```
 
 ---
@@ -210,7 +209,7 @@ shutdown, reboot, halt, chmod, chown, passwd, systemctl, ...
 ## 测试
 
 ```bash
-npm test              # 单元测试（87 tests）
+npm test              # 单元测试（178 tests）
 npm run test:coverage # 覆盖率报告
 npm run test:e2e      # E2E 测试（Node.js test runner）
 npm run test:stress   # 压力测试
@@ -218,10 +217,10 @@ npm run test:stress   # 压力测试
 
 | 指标       | 覆盖率 |
 | ---------- | ------ |
-| Statements | 98%    |
-| Branches   | 89%    |
-| Functions  | 98%    |
-| Lines      | 98%    |
+| Statements | 87%    |
+| Branches   | 72%    |
+| Functions  | 83%    |
+| Lines      | 87%    |
 
 ---
 
@@ -273,4 +272,4 @@ MIT License
 **Ling-term-mcp（灵犀）- 心有灵犀一点通，AI 精准操控终端**
 
 **版本**: 1.1.0
-**基于**: LingMinOpt + LingFlow
+**基于**: lingminopt + lingflow

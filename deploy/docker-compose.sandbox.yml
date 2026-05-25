@@ -1,0 +1,32 @@
+version: "3.8"
+services:
+  cube-sandbox:
+    image: cube-sandbox:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.sandbox
+    container_name: lingxi-sandbox
+    restart: unless-stopped
+    ports:
+      - "9531:9531"
+    volumes:
+      - /tmp/lingxi-sandbox:/workspace
+    environment:
+      - SANDBOX_MODE=container
+      - MAX_EXECUTION_TIME=60
+      - MAX_OUTPUT_SIZE=1048576
+      - ALLOWED_COMMANDS=python3,node,bash,git,pip,npm,tsx,tsc
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 100
+    read_only: true
+    tmpfs:
+      - /tmp:size=100m
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - lingnet
+
+networks:
+  lingnet:
+    driver: bridge
