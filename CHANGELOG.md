@@ -205,17 +205,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `self-driven-scope-guard` — blocks writes outside declared output directory
 - `self-driven-no-modify-shared` — blocks modification of other members' code
 
+#### Authorization System (Red-Zone Hard Barrier)
+
++- **require_authorization** MCP tool — request user approval for red-zone operations (modify shared code, publish, delete)
++- **approve_authorization** MCP tool — approve/reject pending requests, only authorized callers can resolve
++- **list_authorizations** MCP tool — list/filter authorization requests by status or caller
++- In-memory request store with 10-minute TTL, auto-cleanup, max 100 pending
++- 13 unit tests covering full lifecycle (create, approve, reject, expire, filter)
+
 ### Changed
 
 - `identity.ts` — member directories updated to lowercase actual paths (`/home/ai/lingxi` etc.)
 - `store.ts` — data directory follows XDG specification (`~/.local/share/ling-term-mcp`)
 - `contracts.ts` — `checkBehavioralContracts()` now accepts optional `caller` parameter
 - `CONTRIBUTING.md` — project structure updated with audit/, gateway/, protocol/, templates/
-- `README.md` — test count corrected (172), whitelist policy updated
+- `README.md` — test count updated (185), whitelist policy updated
 
 ### Fixed
 
-- Session store path no longer depends on `process.cwd()` (was fragile)
+- `src/tools/authorize.ts` — new file with require/approve/list authorization tools
+- `src/index.ts` — register 3 new authorization MCP tools
 - Shell injection tests for `cd $(cat /etc/passwd)` and `cd \`cat /etc/shadow\`` now correctly rejected by security validator
 
 ---

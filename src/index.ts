@@ -15,6 +15,11 @@ import { listSessions } from './tools/list_sessions.js';
 import { createSession } from './tools/create_session.js';
 import { destroySession } from './tools/destroy_session.js';
 import { auditReport } from './tools/audit_report.js';
+import {
+  requireAuthorization,
+  approveAuthorization,
+  listAuthorizations,
+} from './tools/authorize.js';
 
 /**
  * MCP Server configuration
@@ -51,6 +56,9 @@ export function createServer(): Server {
         createSession.definition,
         destroySession.definition,
         auditReport.definition,
+        requireAuthorization.definition,
+        approveAuthorization.definition,
+        listAuthorizations.definition,
       ],
     };
   });
@@ -73,6 +81,12 @@ export function createServer(): Server {
           return await destroySession.handler(args);
         case 'audit_report':
           return await auditReport.handler(args);
+        case 'require_authorization':
+          return await requireAuthorization.handler(args);
+        case 'approve_authorization':
+          return await approveAuthorization.handler(args);
+        case 'list_authorizations':
+          return await listAuthorizations.handler(args);
         default:
           throw new Error(`Unknown tool: ${name}`);
       }
