@@ -3,19 +3,12 @@
  */
 
 import { createSession } from '../../src/tools/create_session';
-import * as fs from 'fs';
+import { clearSessions } from '../../src/sessions/store';
 import * as path from 'path';
-
-const SESSIONS_FILE = path.join(
-  process.cwd(),
-  '.ling-term-mcp',
-  'sessions.json'
-);
+import * as fs from 'fs';
 
 beforeEach(() => {
-  if (fs.existsSync(SESSIONS_FILE)) {
-    fs.unlinkSync(SESSIONS_FILE);
-  }
+  clearSessions();
 });
 
 describe('create_session', () => {
