@@ -207,11 +207,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Authorization System (Red-Zone Hard Barrier)
 
-+- **require_authorization** MCP tool — request user approval for red-zone operations (modify shared code, publish, delete)
-+- **approve_authorization** MCP tool — approve/reject pending requests, only authorized callers can resolve
-+- **list_authorizations** MCP tool — list/filter authorization requests by status or caller
-+- In-memory request store with 10-minute TTL, auto-cleanup, max 100 pending
-+- 13 unit tests covering full lifecycle (create, approve, reject, expire, filter)
+- **require_authorization** MCP tool — request user approval for red-zone operations (modify shared code, publish, delete)
+- **approve_authorization** MCP tool — approve/reject pending requests, only authorized callers can resolve
+- **list_authorizations** MCP tool — list/filter authorization requests by status or caller
+- In-memory request store with 10-minute TTL, auto-cleanup, max 100 pending
+- 13 unit tests covering full lifecycle (create, approve, reject, expire, filter)
 
 ### Changed
 

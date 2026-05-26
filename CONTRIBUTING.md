@@ -109,7 +109,8 @@ src/
 │   ├── list_sessions.ts
 │   ├── create_session.ts
 │   ├── destroy_session.ts
-│   └── audit_report.ts
+│   ├── audit_report.ts
+│   └── authorize.ts
 ├── sessions/         # Session management
 │   └── store.ts
 ├── security/         # Security + identity
