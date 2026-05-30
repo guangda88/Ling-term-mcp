@@ -7,6 +7,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { saveSession } from '../sessions/store.js';
+import { isCwdAllowed } from '../tools/execute_command.js';
 
 /**
  * Create session tool definition
@@ -36,7 +37,13 @@ export const createSession = {
       working_directory?: string;
     };
 
-    const resolvedDir = working_directory || process.cwd();
+    const resolvedDir = path.resolve(working_directory || process.cwd());
+
+    if (!isCwdAllowed(resolvedDir)) {
+      throw new Error(
+        `Working directory '${resolvedDir}' is not allowed. Blocked prefixes: /etc, /root, /var, /boot, /sbin`
+      );
+    }
 
     try {
       const stat = await fs.stat(resolvedDir);

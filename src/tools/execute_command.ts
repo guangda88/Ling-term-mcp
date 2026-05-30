@@ -53,7 +53,7 @@ const SESSION_ENV_BLOCKLIST = new Set([
 
 const BLOCKED_CWD_PREFIXES = ['/etc', '/root', '/var', '/boot', '/sbin'];
 
-function isCwdAllowed(resolvedPath: string): boolean {
+export function isCwdAllowed(resolvedPath: string): boolean {
   for (const prefix of BLOCKED_CWD_PREFIXES) {
     if (resolvedPath.startsWith(prefix + '/') || resolvedPath === prefix) {
       return false;
@@ -81,7 +81,9 @@ const MAX_OUTPUT_LENGTH = 10000;
 const OUTPUT_HEAD = 5000;
 const OUTPUT_TAIL = 5000;
 
-function buildSafeEnv(sessionEnv?: Record<string, string>): NodeJS.ProcessEnv {
+export function buildSafeEnv(
+  sessionEnv?: Record<string, string>
+): NodeJS.ProcessEnv {
   const safeEnv: NodeJS.ProcessEnv = { TERM: 'xterm-256color' };
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined) continue;
@@ -177,14 +179,14 @@ export const executeCommand = {
         caller: {
           type: 'string',
           description:
-            "Caller identity (e.g. 'lingflow', 'lingclaude'). Validated against the 灵族 member registry. Optional but recommended.",
+            "Caller identity (e.g. 'lingflow', 'lingclaude'). Validated against the 灵族 member registry. Required.",
         },
         expected_outcome: {
           type: 'string',
           description: 'What you expect this command to produce or return.',
         },
       },
-      required: ['command'],
+      required: ['command', 'caller'],
     },
   },
 
@@ -213,15 +215,14 @@ export const executeCommand = {
       throw new Error('Command is required and must be a string');
     }
 
-    if (caller !== undefined) {
-      if (!isKnownMember(caller)) {
-        throw new Error(
-          `Unknown caller: '${caller}' is not a registered 灵族 member`
-        );
-      }
-    } else {
-      console.error(
-        `[identity] Warning: execute_command called without caller identity for: ${command}`
+    if (!caller) {
+      throw new Error(
+        'Caller identity is required. Provide a registered 灵族 member name.'
+      );
+    }
+    if (!isKnownMember(caller)) {
+      throw new Error(
+        `Unknown caller: '${caller}' is not a registered 灵族 member`
       );
     }
 
@@ -234,6 +235,16 @@ export const executeCommand = {
     if (shell) {
       const firstWord = command.trim().split(/\s+/)[0];
       if (SHELL_BUILTINS.has(firstWord)) {
+        const rawPatternCheck = securityValidator.validateCommand(
+          command,
+          [],
+          true
+        );
+        if (!rawPatternCheck.valid) {
+          throw new Error(
+            `Security validation failed: ${rawPatternCheck.error}`
+          );
+        }
         const rest = command.trim().slice(firstWord.length);
         commandForValidation = 'echo' + rest;
       }

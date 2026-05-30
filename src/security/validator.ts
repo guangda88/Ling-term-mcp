@@ -163,6 +163,13 @@ const DANGEROUS_PATTERNS: RegExp[] = [
   /\bsocat\s+/,
   /\bsudo\s+/,
   /\bsu\s+/,
+  /\bfind\s+.*-(exec|execdir|ok|okdir)\s+/,
+  /\bfind\s+.*-delete\b/,
+  /\bxargs\s+rm\b/,
+  /\brm\s+.*(\.git\/|\.crush\/|\.ling-term-mcp\/|crush\.db)/,
+  /\brm\s+.*\/home\/ai\/$/,
+  /\bgit\s+config\s+.*(--global|--system)\s+(core\.hooksPath|init\.templatedir|credential\.helper)\b/,
+  /\bgit\s+.*core\.hooksPath/,
 ];
 
 const DANGEROUS_PIPE_PATTERNS: RegExp[] = [

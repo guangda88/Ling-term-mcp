@@ -13,6 +13,7 @@ import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
 import { hashOutput } from '../audit/snapshot.js';
+import { buildSafeEnv } from '../tools/execute_command.js';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -151,6 +152,7 @@ export class CommandQueue {
         result = await execAsync(request.command, {
           timeout: effectiveTimeout,
           cwd,
+          env: buildSafeEnv(),
           maxBuffer: 1024 * 1024,
         });
       } else {
@@ -160,6 +162,7 @@ export class CommandQueue {
         result = await execFileAsync(bin, args, {
           timeout: effectiveTimeout,
           cwd,
+          env: buildSafeEnv(),
           maxBuffer: 1024 * 1024,
         });
       }
