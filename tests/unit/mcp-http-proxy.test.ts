@@ -63,12 +63,15 @@ function mockRes() {
   return { res, headers };
 }
 
+let cleanup: (() => void) | null = null;
+
 async function initProxy(config: {
   authToken?: string;
   rateLimit?: { windowMs: number; maxRequests: number };
 }) {
   capturedHandler = null;
-  await startHTTPProxy({
+  if (cleanup) cleanup();
+  cleanup = await startHTTPProxy({
     createServer: () => ({ connect: jest.fn() }) as any,
     name: 'test',
     port: 19999,
@@ -109,6 +112,13 @@ async function request(opts: {
 }
 
 describe('MCP HTTP Proxy Middleware', () => {
+  afterAll(() => {
+    if (cleanup) {
+      cleanup();
+      cleanup = null;
+    }
+  });
+
   describe('checkAuth', () => {
     it('passes when no authToken configured', async () => {
       await initProxy({});

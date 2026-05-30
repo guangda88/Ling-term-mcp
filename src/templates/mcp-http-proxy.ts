@@ -38,7 +38,9 @@ export interface HTTPProxyOptions {
   rateLimit?: RateLimitConfig;
 }
 
-export async function startHTTPProxy(options: HTTPProxyOptions): Promise<void> {
+export async function startHTTPProxy(
+  options: HTTPProxyOptions
+): Promise<() => void> {
   const {
     createServer,
     name,
@@ -183,4 +185,10 @@ export async function startHTTPProxy(options: HTTPProxyOptions): Promise<void> {
 
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+
+  return () => {
+    process.removeListener('SIGINT', shutdown);
+    process.removeListener('SIGTERM', shutdown);
+    httpServer.close();
+  };
 }

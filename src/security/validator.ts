@@ -402,6 +402,36 @@ export class SecurityValidator {
     return null;
   }
 
+  /**
+   * Check only dangerous patterns and blocked metacharacters,
+   * without whitelist/blacklist validation. Used for shell builtins
+   * which are not in the whitelist but are safe to execute.
+   */
+  validateCommandPatternsOnly(command: string): {
+    valid: boolean;
+    error?: string;
+  } {
+    const pattern = this.findDangerousPattern(command);
+    if (pattern) {
+      return {
+        valid: false,
+        error: `Command contains dangerous pattern: ${pattern}`,
+      };
+    }
+
+    const BLOCKED_METACHARS = [/;/, /`/, /\$\(/];
+    for (const metachar of BLOCKED_METACHARS) {
+      if (metachar.test(command)) {
+        return {
+          valid: false,
+          error: `Shell operator '${metachar.source}' is blocked for security reasons`,
+        };
+      }
+    }
+
+    return { valid: true };
+  }
+
   private static readonly INJECTION_PATTERNS = [/;/, /`/, /\$\(/, /\\n/, /\\r/];
 
   private containsShellInjection(input: string): boolean {

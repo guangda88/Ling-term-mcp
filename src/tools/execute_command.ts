@@ -235,11 +235,8 @@ export const executeCommand = {
     if (shell) {
       const firstWord = command.trim().split(/\s+/)[0];
       if (SHELL_BUILTINS.has(firstWord)) {
-        const rawPatternCheck = securityValidator.validateCommand(
-          command,
-          [],
-          true
-        );
+        const rawPatternCheck =
+          securityValidator.validateCommandPatternsOnly(command);
         if (!rawPatternCheck.valid) {
           throw new Error(
             `Security validation failed: ${rawPatternCheck.error}`
