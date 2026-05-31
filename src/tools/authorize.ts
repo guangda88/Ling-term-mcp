@@ -329,6 +329,32 @@ export function getAuthorizationStatus(
   return req;
 }
 
+export function checkRedZoneAuthorization(
+  authorizationId: string,
+  _command: string
+): { allowed: boolean; error?: string } {
+  const req = requests.get(authorizationId);
+  if (!req) {
+    return {
+      allowed: false,
+      error: `Authorization '${authorizationId}' not found`,
+    };
+  }
+  if (req.status === 'pending') {
+    const now = Date.now();
+    if (now > new Date(req.expires_at).getTime()) {
+      req.status = 'expired';
+    }
+  }
+  if (req.status !== 'approved') {
+    return {
+      allowed: false,
+      error: `Authorization is ${req.status} (must be approved)`,
+    };
+  }
+  return { allowed: true };
+}
+
 export function _resetForTesting(): void {
   requests.clear();
 }

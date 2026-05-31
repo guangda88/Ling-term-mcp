@@ -20,6 +20,7 @@ import {
   appendDecisionRecord,
 } from '../sessions/store.js';
 import { hashOutput } from '../audit/snapshot.js';
+import { checkRedZoneAuthorization } from './authorize.js';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -185,6 +186,11 @@ export const executeCommand = {
           type: 'string',
           description: 'What you expect this command to produce or return.',
         },
+        authorization_id: {
+          type: 'string',
+          description:
+            'Authorization ID for red-zone commands (ssh, curl, npm, etc.). Obtain via require_authorization tool.',
+        },
       },
       required: ['command', 'caller'],
     },
@@ -200,6 +206,7 @@ export const executeCommand = {
       reasoning = '',
       expected_outcome = '',
       caller,
+      authorization_id,
     } = args as {
       command: string;
       args?: string[];
@@ -209,6 +216,7 @@ export const executeCommand = {
       reasoning?: string;
       expected_outcome?: string;
       caller?: string;
+      authorization_id?: string;
     };
 
     if (!command || typeof command !== 'string') {
@@ -247,17 +255,57 @@ export const executeCommand = {
       }
     }
 
-    const securityCheck = securityValidator.validateCommand(
-      commandForValidation,
-      shell ? [] : cmdArgs || [],
-      shell
-    );
-    if (!securityCheck.valid) {
+    // Always check dangerous patterns for ALL command categories
+    const patternCheck =
+      securityValidator.validateCommandPatternsOnly(commandForValidation);
+    if (!patternCheck.valid) {
+      throw new Error(`Security validation failed: ${patternCheck.error}`);
+    }
+
+    const category = securityValidator.categorize(commandForValidation);
+
+    if (category === 'blacklisted') {
       console.error(
-        `[security] Command rejected: "${command}" — ${securityCheck.error}` +
-          (caller ? ` (caller: ${caller})` : ' (no caller)')
+        `[security] Command rejected (blacklisted): "${command}" (caller: ${caller})`
       );
-      throw new Error(`Security validation failed: ${securityCheck.error}`);
+      throw new Error(
+        `Security validation failed: Command '${commandForValidation.split(' ')[0]}' is blacklisted`
+      );
+    }
+
+    if (category === 'unknown') {
+      const securityCheck = securityValidator.validateCommand(
+        commandForValidation,
+        shell ? [] : cmdArgs || [],
+        shell
+      );
+      if (!securityCheck.valid) {
+        console.error(
+          `[security] Command rejected: "${command}" — ${securityCheck.error} (caller: ${caller})`
+        );
+        throw new Error(`Security validation failed: ${securityCheck.error}`);
+      }
+    }
+
+    if (category === 'red_zone') {
+      if (!authorization_id) {
+        console.error(
+          `[security] Red-zone command requires authorization: "${command}" (caller: ${caller})`
+        );
+        throw new Error(
+          `Red-zone command '${commandForValidation.split(' ')[0]}' requires authorization. Use require_authorization tool first.`
+        );
+      }
+      const auth = checkRedZoneAuthorization(authorization_id, command);
+      if (!auth.allowed) {
+        console.error(
+          `[security] Red-zone authorization denied: "${command}" — ${auth.error} (caller: ${caller})`
+        );
+        throw new Error(`Red-zone authorization failed: ${auth.error}`);
+      }
+      console.error(
+        `[security] Red-zone command authorized: "${command}" (caller: ${caller}, auth: ${authorization_id})`
+      );
     }
 
     let cwd: string | undefined;

@@ -32,6 +32,7 @@ describe('Integration: Full session lifecycle', () => {
     const pwdResult = await executeCommand.handler({
       command: 'pwd',
       session_id: sessionId,
+      caller: 'lingxi',
     });
     expect(pwdResult.content[0].text.trim()).toBe('/tmp');
 
@@ -61,11 +62,13 @@ describe('Integration: Full session lifecycle', () => {
       command: 'cd /home',
       shell: true,
       session_id: sessionId,
+      caller: 'lingxi',
     });
 
     const pwdResult = await executeCommand.handler({
       command: 'pwd',
       session_id: sessionId,
+      caller: 'lingxi',
     });
     expect(pwdResult.content[0].text.trim()).toBe('/home');
 
@@ -73,6 +76,7 @@ describe('Integration: Full session lifecycle', () => {
       command: 'ls -1 | head -5',
       shell: true,
       session_id: sessionId,
+      caller: 'lingxi',
     });
     expect(pipeResult.content[0].type).toBe('text');
 
@@ -102,6 +106,7 @@ describe('Integration: Full session lifecycle', () => {
         command: 'echo',
         args: [sessionId.slice(0, 8)],
         session_id: sessionId,
+        caller: 'lingxi',
       });
       expect(result.content[0].text).toContain(sessionId.slice(0, 8));
     }
@@ -131,12 +136,14 @@ describe('Integration: Full session lifecycle', () => {
       command: 'export SESSION_ONE=true',
       shell: true,
       session_id: id1,
+      caller: 'lingxi',
     });
 
     await executeCommand.handler({
       command: 'export SESSION_TWO=true',
       shell: true,
       session_id: id2,
+      caller: 'lingxi',
     });
 
     const session1 = await getSession(id1);
@@ -162,11 +169,13 @@ describe('Integration: Full session lifecycle', () => {
       command: 'echo first',
       shell: true,
       session_id: id,
+      caller: 'lingxi',
     });
     await executeCommand.handler({
       command: 'echo second',
       shell: true,
       session_id: id,
+      caller: 'lingxi',
     });
 
     await new Promise((r) => setTimeout(r, 100));
@@ -186,6 +195,7 @@ describe('Integration: Timeout handling', () => {
       command: 'node',
       args: ['-e', 'setTimeout(()=>{},30000)'],
       timeout: 1000,
+      caller: 'lingxi',
     });
 
     expect(result.isError).toBe(true);

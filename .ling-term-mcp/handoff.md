@@ -13,6 +13,7 @@
 - ✅ 5-27事故安全加固 P0-P2（7项修复，commit 5971cd9）
 - ✅ 通知灵通+修复daemon侧安全缺口
 - ✅ mcp-http-proxy测试修复（builtin验证+cleanup+forceExit）
+- ✅ 红区执行强制授权 — authorize.ts的checkRedZoneAuthorization接入execute_command安全链
 
 ## 5-27事故安全加固详情（commit 5971cd9）
 - P0: gateway env泄露 — queue.ts复用buildSafeEnv()过滤密钥
@@ -24,10 +25,11 @@
 - P2: git config hooksPath/credential.helper覆盖拦截
 
 ## 测试状态
-- 单元: 184/184 ✅ | E2E: 5/5 ✅ | TypeScript: clean ✅ | Build: ✅
+- 单元+集成: 190/190 ✅ | E2E: 5/5 ✅ | TypeScript: clean ✅ | Build: ✅
 
 ## 会话记录
-- 2026-05-30: SDT执行(4/4), 5-27安全加固P0-P2(7项), mcp-http-proxy修复, 通知灵通+
+- 2026-05-30(2): SDT第2次执行(4/4), 红区强制授权接入, 回复运维复盘+epoll事故线程, 190/190全绿
+- 2026-05-30(1): SDT执行(4/4), 5-27安全加固P0-P2(7项), mcp-http-proxy修复, 通知灵通+
 - 2026-05-29: 唤醒协议，SDT首次执行（4/4通过），回复治理讨论，提交3个commit
 - 2026-05-28: SDT注册（.lingxi/self_driven_tasks.json），AGENTS.md添加SDT段，回复8个LingBus线程
 - 2026-05-26: 更新CRUSH.md灵网转正，回复灵族TAP v2/P0密钥暴露线程

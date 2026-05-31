@@ -135,6 +135,43 @@ export const DEFAULT_BLACKLIST: string[] = [
   'batch',
 ];
 
+export const RED_ZONE_COMMANDS: string[] = [
+  'ssh',
+  'scp',
+  'rsync',
+  'sftp',
+  'curl',
+  'wget',
+  'nc',
+  'ncat',
+  'nmap',
+  'dig',
+  'nslookup',
+  'host',
+  'traceroute',
+  'ping',
+  'apt',
+  'apt-get',
+  'dnf',
+  'yum',
+  'pacman',
+  'apk',
+  'npm',
+  'npx',
+  'docker',
+  'podman',
+  'kubectl',
+  'helm',
+  'terraform',
+  'ansible',
+];
+
+export type CommandCategory =
+  | 'whitelisted'
+  | 'red_zone'
+  | 'blacklisted'
+  | 'unknown';
+
 /**
  * Dangerous patterns — checked against the full command string
  */
@@ -393,6 +430,18 @@ export class SecurityValidator {
 
   private isBlacklisted(command: string): boolean {
     return this.isInList(command, this.config.blacklist);
+  }
+
+  isRedZone(command: string): boolean {
+    return RED_ZONE_COMMANDS.includes(command.split(' ')[0]);
+  }
+
+  categorize(command: string): CommandCategory {
+    const cmd = command.split(' ')[0];
+    if (this.isInList(cmd, this.config.blacklist)) return 'blacklisted';
+    if (RED_ZONE_COMMANDS.includes(cmd)) return 'red_zone';
+    if (this.isInList(cmd, this.config.whitelist)) return 'whitelisted';
+    return 'unknown';
   }
 
   private findDangerousPattern(command: string): string | null {
