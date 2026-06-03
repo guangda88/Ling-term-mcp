@@ -1,5 +1,5 @@
 # Handoff v2 — 灵犀会话交接
-> 更新: 2026-06-03 | 状态: active
+> 更新: 2026-06-04 | 状态: active
 
 ## 当前任务
 - ✅ P0-1 命令执行网关（gateway/ 四文件已实现）
@@ -28,6 +28,7 @@
 - 单元+集成: 199/199 ✅ | E2E: 5/5 ✅ | TypeScript: clean ✅ | Build: ✅
 
 ## 会话记录
+- 2026-06-04: 唤醒协议, safe-bash fail-open→fail-closed修复(3处漏洞), 部署至~/.local/bin, SDT第8次执行(4/4通过, 199/199全绿), 回复灵克safe-bash审计确认, ack 56条LingBus消息
 - 2026-06-03: SDT第7次执行(4/4通过, 199/199全绿), 技术债务修复P0/P1(共享utils提取+授权命令绑定+gateway逻辑修正), 回复L1-L4/安全架构/PG RSS/Provider告警等线程, 3个commit(1d36447/1619ed3/d8bbab7)
 - 2026-06-02: SDT第6次执行(4/4通过, 193/193全绿), HTTP/2 SSE兼容性修复(Connection:close+res.destroy), 审计: 15sess/11cmd/0viol, CRUSH.md会话生命周期协议添加, 回复引用监控机/SEC-LM-01/OOM治理/启动自报等线程
 - 2026-06-01: SDT第5次执行(4/4通过, 184/184测试全绿), 审计报告: 13session/11cmd/0违规
@@ -48,9 +49,21 @@ execute_command, sync_terminal, list_sessions, create_session, destroy_session, 
 
 | SDT | 任务 | 优先级 | 间隔 | 上次执行 | 结果 | 连续次数 |
 |-----|------|--------|------|---------|------|---------|
-| SDT-lx-001 | session备份 | P2 | 12h | 2026-06-03 | ok: skip(无活跃会话) | 6 |
-| SDT-lx-002 | 命令审计 | P2 | 24h | 2026-06-03 | ok: 15sess/11cmd/0viol | 6 |
-| SDT-lx-003 | 身份漂移检测 | P1 | 24h | 2026-06-03 | ok: CRUSH.md仅含已知变更 | 6 |
+| SDT-lx-001 | session备份 | P2 | 12h | 2026-06-04 | ok: skip(17sess均为其他成员) | 7 |
+| SDT-lx-002 | 命令审计 | P2 | 24h | 2026-06-04 | ok: 17sess/16cmd/0viol | 7 |
+| SDT-lx-003 | 身份漂移检测 | P1 | 24h | 2026-06-04 | ok: CRUSH.md仅含灵创#13新增 | 7 |
+| SDT-lx-004 | 测试健康检查 | P2 | 24h | 2026-06-04 | ok: 199/199 pass | 8 |
+| SDT-lx-005 | MCP封装扫描 | P1 | weekly | 2026-06-03 | ok: 13svr/150tool/灵议封装/0mismatch | 3 |
+
+## SDT-lx-005 首次扫描结果（2026-06-02）
+
+- 扫描12个灵族成员目录，发现12个MCP Server，148个活跃工具
+- 成熟9个(灵克26/灵创20/灵极优16/灵信·总线16/灵研16/灵知15/灵扬14/灵通问道9/灵犀9)
+- 待完善3个(灵信·标注3/灵信·签名3/智桥1-demo)
+- 无MCP Server 3个(灵通-有CLI工具/灵网/灵通+)
+- tool_registry.json同步: 修复6条不一致(灵犀5→9/灵知0→15/灵信·总线0→16/灵信·签名0→3/灵信·标注0→3) + 新增灵创(20工具)
+- 注册表现在: 15个服务, 224个工具(含灵依30)
+- 扫描报告: `.lingxi/mcp_scan/scan_2026-06-02.md`
 
 ## 本次产出
 
@@ -64,6 +77,7 @@ execute_command, sync_terminal, list_sessions, create_session, destroy_session, 
 - HTTP代理请求超时防护重构（mcp-http-proxy.ts 5min超时+ActiveConnection跟踪）
 - SDT第6次执行(4/4, 193/193全绿)
 - 回复30+个LingBus线程（6/2事故/引用监控机/SEC-LM-01/OOM治理/vm.overcommit/SEC-LY-01等）
+- SDT-lx-005注册+首次执行（灵族MCP封装扫描，tool_registry.json 6条同步+灵创新增）
 
 ## 待部署（需用户授权）
 

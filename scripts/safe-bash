@@ -74,9 +74,8 @@ print(json.dumps({'command': cmd}))
 " 2>/dev/null)
 
 if [ -z "$CHECK_PAYLOAD" ]; then
-  # JSON construction failed — fail-open with warning
-  echo "[safe-bash] WARNING: could not build check payload, executing anyway" >&2
-  exec /bin/bash -c "$CMD"
+  echo "[safe-bash] BLOCKED: could not build check payload (fail-closed)" >&2
+  exit 126
 fi
 
 RESPONSE=$(printf '%s' "$CHECK_PAYLOAD" | \
@@ -89,9 +88,8 @@ RESPONSE=$(printf '%s' "$CHECK_PAYLOAD" | \
 CURL_EXIT=$?
 
 if [ "$CURL_EXIT" -ne 0 ]; then
-  # Gateway unreachable — fail-open with warning
-  echo "[safe-bash] WARNING: gateway unreachable, executing without check" >&2
-  exec /bin/bash -c "$CMD"
+  echo "[safe-bash] BLOCKED: gateway unreachable, refusing command (fail-closed)" >&2
+  exit 126
 fi
 
 # Parse response — check if blocked or requires authorization
@@ -108,7 +106,7 @@ try:
     else:
         print('ok')
 except:
-    print('ok')  # fail-open
+    print('blocked')  # fail-closed
 " 2>/dev/null)
 
 if [ "$DECISION" = "blocked" ] || [ "$DECISION" = "red_zone" ]; then
