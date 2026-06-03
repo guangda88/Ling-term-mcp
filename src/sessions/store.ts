@@ -50,7 +50,8 @@ async function initializeStore(): Promise<void> {
     const data = await fs.readFile(DATA_FILE, 'utf-8');
     const sessionsArray = JSON.parse(data) as Session[];
     sessions = new Map(sessionsArray.map((s) => [s.id, s]));
-  } catch {
+  } catch (error) {
+    console.warn('[sessions] Failed to load sessions, starting fresh:', error);
     sessions = new Map();
   }
 }

@@ -299,9 +299,6 @@ export const auditReport = {
     };
 
     if (format === 'detailed') {
-      summary.tool_usage = buildToolUsage(decisions);
-      summary.caller_stats = buildCallerStats(decisions);
-      summary.violations = await buildViolations();
       const perfMetrics = performanceMonitor.getMetrics();
       const perfHistory = performanceMonitor.getExecutionHistory(20);
       return {

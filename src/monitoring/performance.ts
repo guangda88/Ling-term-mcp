@@ -220,4 +220,3 @@ export async function withPerformanceTracking<T>(
 
 // Export singleton instance
 export const performanceMonitor = new PerformanceMonitor();
-// verify hook

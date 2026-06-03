@@ -328,17 +328,6 @@ export class SecurityValidator {
       };
     }
 
-    if (shellMode && this.config.sanitizeUserInput) {
-      for (let i = 0; i < args.length; i++) {
-        if (this.containsShellInjection(args[i])) {
-          return {
-            valid: false,
-            error: `Argument ${i + 1} contains potential shell injection`,
-          };
-        }
-      }
-    }
-
     return { valid: true };
   }
 
@@ -455,10 +444,6 @@ export class SecurityValidator {
     return 'unknown';
   }
 
-  hasDangerousPattern(command: string): string | null {
-    return this.findDangerousPattern(command);
-  }
-
   private findDangerousPattern(command: string): string | null {
     for (const pattern of ALL_DANGEROUS_PATTERNS) {
       if (pattern.test(command)) return pattern.source;
@@ -495,13 +480,6 @@ export class SecurityValidator {
 
     return { valid: true };
   }
-
-  private static readonly INJECTION_PATTERNS = [/;/, /`/, /\$\(/, /\\n/, /\\r/];
-
-  private containsShellInjection(input: string): boolean {
-    return SecurityValidator.INJECTION_PATTERNS.some((p) => p.test(input));
-  }
 }
 
-// Export singleton instance
 export const securityValidator = new SecurityValidator();
