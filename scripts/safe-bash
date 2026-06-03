@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+# safe-bash — Crush bash wrapper with red-zone pre-check
+# Calls lingxi gateway /v1/check before executing commands.
+# Install: chmod 755 /usr/local/bin/safe-bash
+# Configure: crush.json shellPath = "/usr/local/bin/safe-bash"
+
+GATEWAY_URL="${LINGXI_CHECK_URL:-http://127.0.0.1:9530/v1/check}"
+GATEWAY_TIMEOUT=3
+
+# Read the command from stdin (Crush passes commands via heredoc/stdin)
+# or from arguments. Handle both `safe-bash -c "cmd"` and stdin modes.
+if [ $# -ge 2 ] && [ "$1" = "-c" ]; then
+  shift
+  CMD="$*"
+elif [ -n "$1" ]; then
+  CMD="$*"
+else
+  CMD=""
+  while IFS= read -r line || [ -n "$line" ]; do
+    [ -n "$CMD" ] && CMD="$CMD"$'\n'
+    CMD="$CMD$line"
+  done
+fi
+
+if [ -z "$CMD" ]; then
+  echo "safe-bash: no command provided" >&2
+  exit 1
+fi
+
+# === LOCAL BLACKLIST (defense-in-depth, always enforced) ===
+# These patterns are always blocked even if gateway is unreachable.
+LOCAL_BLACKLIST_PATTERNS=(
+  'rm\s+-rf\s+/'
+  'mkfs\.'
+  'dd\s+if=.*of=/dev/'
+  'shutdown'
+  'reboot'
+  'poweroff'
+  'mkswap'
+  'git\s+push\s+.*--force'
+  'git\s+push\s+.*-f\b'
+  'git\s+reset\s+--hard'
+  'iptables\s+-[FDX]'
+  'iptables\s+--flush'
+  'ufw\s+disable'
+  'docker\s+rm\s+-f'
+  'docker\s+system\s+prune'
+)
+
+for pat in "${LOCAL_BLACKLIST_PATTERNS[@]}"; do
+  if echo "$CMD" | grep -qE "$pat" 2>/dev/null; then
+    echo "[safe-bash] BLOCKED (local): command matches critical pattern '$pat'" >&2
+    echo "[safe-bash] To proceed, request authorization via lingxi require_authorization" >&2
+    exit 126
+  fi
+done
+
+# Skip check for read-only commands (whitelist fast-path)
+FIRST_WORD=$(echo "$CMD" | head -1 | awk '{print $1}')
+case "$FIRST_WORD" in
+  echo|pwd|whoami|id|hostname|date|uname|ls|cat|head|tail|grep|wc|sort|uniq|diff|which|type|env|printenv|tree|file|stat|jq)
+    exec /bin/bash -c "$CMD"
+    ;;
+esac
+
+# Call gateway /v1/check
+CHECK_PAYLOAD=$(printf '%s' "$CMD" | python3 -c "
+import sys, json
+cmd = sys.stdin.read()
+# Truncate to 4KB for safety
+if len(cmd) > 4096:
+    cmd = cmd[:4096]
+print(json.dumps({'command': cmd}))
+" 2>/dev/null)
+
+if [ -z "$CHECK_PAYLOAD" ]; then
+  # JSON construction failed — fail-open with warning
+  echo "[safe-bash] WARNING: could not build check payload, executing anyway" >&2
+  exec /bin/bash -c "$CMD"
+fi
+
+RESPONSE=$(printf '%s' "$CHECK_PAYLOAD" | \
+  timeout "$GATEWAY_TIMEOUT" \
+  curl -s -X POST \
+    -H 'Content-Type: application/json' \
+    -d @- \
+    "$GATEWAY_URL" 2>/dev/null)
+
+CURL_EXIT=$?
+
+if [ "$CURL_EXIT" -ne 0 ]; then
+  # Gateway unreachable — fail-open with warning
+  echo "[safe-bash] WARNING: gateway unreachable, executing without check" >&2
+  exec /bin/bash -c "$CMD"
+fi
+
+# Parse response — check if blocked or requires authorization
+DECISION=$(echo "$RESPONSE" | python3 -c "
+import sys, json
+try:
+    r = json.load(sys.stdin)
+    blocked = r.get('blocked', False)
+    requires_auth = r.get('requires_authorization', False)
+    if blocked:
+        print('blocked')
+    elif requires_auth:
+        print('red_zone')
+    else:
+        print('ok')
+except:
+    print('ok')  # fail-open
+" 2>/dev/null)
+
+if [ "$DECISION" = "blocked" ] || [ "$DECISION" = "red_zone" ]; then
+  REASON=$(echo "$RESPONSE" | python3 -c "
+import sys, json
+try:
+    r = json.load(sys.stdin)
+    print(r.get('reason', 'blocked by red-zone policy'))
+except:
+    print('blocked by red-zone policy')
+" 2>/dev/null)
+  echo "[safe-bash] BLOCKED: $REASON" >&2
+  echo "[safe-bash] To proceed, request authorization via lingxi require_authorization" >&2
+  exit 126
+fi
+
+# Command passed check — execute
+exec /bin/bash -c "$CMD"

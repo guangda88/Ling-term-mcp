@@ -12,8 +12,8 @@ describe('SecurityValidator', () => {
 
   beforeEach(() => {
     validator = new SecurityValidator({
-      whitelist: ['ls', 'pwd', 'cat', 'echo'],
-      blacklist: ['rm', 'rmdir'],
+      whitelist: ['ls', 'pwd', 'cat', 'echo', 'git'],
+      blacklist: ['rm', 'rmdir', 'kill', 'sudo'],
       allowUnknownCommands: false,
       sanitizeUserInput: true,
       maxCommandLength: 1000,
@@ -262,6 +262,40 @@ describe('SecurityValidator', () => {
         'bash',
       ]);
       expect(result.valid).toBe(false);
+    });
+  });
+
+  describe('categorize', () => {
+    it('should categorize blacklisted commands', () => {
+      expect(validator.categorize('rm -rf /tmp')).toBe('blacklisted');
+      expect(validator.categorize('kill -9 1234')).toBe('blacklisted');
+      expect(validator.categorize('sudo ls')).toBe('blacklisted');
+    });
+
+    it('should categorize red_zone commands', () => {
+      expect(validator.categorize('ssh user@host')).toBe('red_zone');
+      expect(validator.categorize('curl http://example.com')).toBe('red_zone');
+      expect(validator.categorize('docker ps')).toBe('red_zone');
+      expect(validator.categorize('npm install')).toBe('red_zone');
+    });
+
+    it('should categorize whitelisted commands', () => {
+      expect(validator.categorize('ls -la')).toBe('whitelisted');
+      expect(validator.categorize('git status')).toBe('whitelisted');
+      expect(validator.categorize('pwd')).toBe('whitelisted');
+    });
+
+    it('should categorize unknown commands', () => {
+      expect(validator.categorize('foobar --flag')).toBe('unknown');
+      expect(validator.categorize('custom_binary')).toBe('unknown');
+    });
+
+    it('should categorize commands with dangerous patterns as red_zone', () => {
+      const v = new SecurityValidator({
+        ...DEFAULT_SECURITY_CONFIG,
+        allowUnknownCommands: true,
+      });
+      expect(v.categorize('echo | bash')).toBe('red_zone');
     });
   });
 });

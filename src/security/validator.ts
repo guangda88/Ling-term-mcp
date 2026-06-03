@@ -37,8 +37,6 @@ export const DEFAULT_WHITELIST: string[] = [
   'node',
   'python',
   'python3',
-  'pip',
-  'pip3',
   'pipenv',
   'poetry',
   'yarn',
@@ -133,6 +131,10 @@ export const DEFAULT_BLACKLIST: string[] = [
   'crontab',
   'at',
   'batch',
+  'mkswap',
+  'iptables',
+  'ufw',
+  'ip',
 ];
 
 export const RED_ZONE_COMMANDS: string[] = [
@@ -158,6 +160,8 @@ export const RED_ZONE_COMMANDS: string[] = [
   'apk',
   'npm',
   'npx',
+  'pip',
+  'pip3',
   'docker',
   'podman',
   'kubectl',
@@ -207,6 +211,12 @@ const DANGEROUS_PATTERNS: RegExp[] = [
   /\brm\s+.*\/home\/ai\/$/,
   /\bgit\s+config\s+.*(--global|--system)\s+(core\.hooksPath|init\.templatedir|credential\.helper)\b/,
   /\bgit\s+.*core\.hooksPath/,
+  /\bgit\s+push\s+.*(--force|-f\b)/,
+  /\bgit\s+reset\s+--hard/,
+  /\bmkswap\b/,
+  /\biptables\s+-[AIFDRX]/,
+  /\bufw\s+(disable|allow|deny|default)/,
+  /\bip\s+(route|addr|link)\s+(del|flush)/,
 ];
 
 const DANGEROUS_PIPE_PATTERNS: RegExp[] = [
@@ -440,8 +450,13 @@ export class SecurityValidator {
     const cmd = command.split(' ')[0];
     if (this.isInList(cmd, this.config.blacklist)) return 'blacklisted';
     if (RED_ZONE_COMMANDS.includes(cmd)) return 'red_zone';
+    if (this.findDangerousPattern(command)) return 'red_zone';
     if (this.isInList(cmd, this.config.whitelist)) return 'whitelisted';
     return 'unknown';
+  }
+
+  hasDangerousPattern(command: string): string | null {
+    return this.findDangerousPattern(command);
   }
 
   private findDangerousPattern(command: string): string | null {

@@ -1,5 +1,6 @@
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { Coordinator } from './coordinator.js';
+import { securityValidator } from '../security/validator.js';
 import type {
   DispatchRequest,
   DispatchResponse,
@@ -7,6 +8,8 @@ import type {
   CancelResponse,
   GatewayStatus,
   HistoryResponse,
+  CheckRequest,
+  CheckResponse,
 } from './types.js';
 
 const DEFAULT_PORT = 9530;
@@ -90,6 +93,36 @@ export function startGatewayServer(port?: number): Promise<void> {
           commands: coordinator.getHistory(limit),
         };
         sendJSON(res, 200, result);
+      } else if (path === '/v1/check' && method === 'POST') {
+        const body = await readBody(req);
+        let checkReq: CheckRequest;
+        try {
+          checkReq = JSON.parse(body);
+        } catch {
+          sendError(res, 400, 'Invalid JSON');
+          return;
+        }
+        if (!checkReq.command || typeof checkReq.command !== 'string') {
+          sendError(res, 400, 'command is required');
+          return;
+        }
+        const cmd = checkReq.command;
+        const category = securityValidator.categorize(cmd);
+        const blocked = category === 'blacklisted';
+        const requiresAuth = category === 'red_zone' || blocked;
+        const response: CheckResponse = {
+          command: cmd,
+          category,
+          blocked,
+          requires_authorization: requiresAuth,
+          source: checkReq.source,
+        };
+        if (blocked) {
+          response.reason = `Command '${cmd.split(' ')[0]}' is blacklisted`;
+        } else if (category === 'red_zone') {
+          response.reason = `Command '${cmd.split(' ')[0]}' is red-zone, requires authorization`;
+        }
+        sendJSON(res, blocked ? 403 : 200, response);
       } else {
         sendError(res, 404, 'Not found');
       }

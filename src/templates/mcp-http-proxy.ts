@@ -36,6 +36,14 @@ export interface HTTPProxyOptions {
   hostEnv?: string;
   authToken?: string;
   rateLimit?: RateLimitConfig;
+  requestTimeoutMs?: number;
+}
+
+interface ActiveConnection {
+  server: Server;
+  transport: StreamableHTTPServerTransport;
+  timer: ReturnType<typeof setTimeout>;
+  res: ServerResponse;
 }
 
 export async function startHTTPProxy(
@@ -48,11 +56,13 @@ export async function startHTTPProxy(
     hostEnv = 'MCP_HTTP_HOST',
     authToken,
     rateLimit,
+    requestTimeoutMs = 300_000,
   } = options;
   const port = parseInt(process.env[portEnv] || '', 10) || options.port || 9529;
   const host = process.env[hostEnv] || options.host || '127.0.0.1';
 
   const rateLimitState = new Map<string, { count: number; resetAt: number }>();
+  const activeConnections = new Set<ActiveConnection>();
 
   function getClientIp(req: IncomingMessage): string {
     return (
@@ -84,6 +94,7 @@ export async function startHTTPProxy(
       res.writeHead(429, {
         'Content-Type': 'application/json',
         'Retry-After': String(retryAfter),
+        Connection: 'close',
       });
       res.end(
         JSON.stringify({
@@ -109,6 +120,7 @@ export async function startHTTPProxy(
       res.writeHead(401, {
         'Content-Type': 'application/json',
         'WWW-Authenticate': 'Bearer realm="mcp"',
+        Connection: 'close',
       });
       res.end(
         JSON.stringify({
@@ -125,14 +137,40 @@ export async function startHTTPProxy(
     return true;
   }
 
+  async function cleanupConnection(entry: ActiveConnection, reason: string) {
+    if (!activeConnections.has(entry)) return;
+    activeConnections.delete(entry);
+    clearTimeout(entry.timer);
+    try {
+      await entry.server.close();
+    } catch {
+      // already closed
+    }
+    try {
+      await entry.transport.close();
+    } catch {
+      // already closed
+    }
+    if (!entry.res.writableEnded) {
+      entry.res.end();
+    }
+    entry.res.destroy();
+    console.error(`[${name}] Connection cleaned up (${reason})`);
+  }
+
   const httpServer = createHttpServer(
     async (req: IncomingMessage, res: ServerResponse) => {
+      res.setHeader('X-Powered-By', name);
+
       const url = new URL(req.url || '/', `http://${host}:${port}`);
 
       if (req.method === 'GET' && url.pathname === '/health') {
         if (!checkAuth(req, res)) return;
         if (!checkRateLimit(req, res)) return;
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          Connection: 'close',
+        });
         res.end(
           JSON.stringify({
             status: 'ok',
@@ -146,18 +184,62 @@ export async function startHTTPProxy(
       if (!checkAuth(req, res)) return;
       if (!checkRateLimit(req, res)) return;
 
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined,
+      });
+      const server = createServer();
+      let finished = false;
+
+      const entry: ActiveConnection = {
+        server,
+        transport,
+        timer: null as unknown as ReturnType<typeof setTimeout>,
+        res,
+      };
+      activeConnections.add(entry);
+
+      entry.timer = setTimeout(async () => {
+        if (finished) return;
+        finished = true;
+        console.error(
+          `[${name}] Request timeout after ${requestTimeoutMs}ms, closing connection`
+        );
+        if (!res.headersSent) {
+          res.writeHead(504, {
+            'Content-Type': 'application/json',
+            Connection: 'close',
+          });
+          res.end(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              error: { code: -32000, message: 'Gateway timeout' },
+              id: null,
+            })
+          );
+        }
+        await cleanupConnection(entry, 'timeout');
+      }, requestTimeoutMs);
+
+      res.on('close', () => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(entry.timer);
+        if (activeConnections.has(entry)) {
+          cleanupConnection(entry, 'client disconnected').catch(() => {});
+        }
+      });
+
       try {
-        const transport = new StreamableHTTPServerTransport({
-          sessionIdGenerator: undefined,
-        });
-        const server = createServer();
         await server.connect(transport);
         await transport.handleRequest(req, res);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[${name}] Request error:`, message);
-        if (!res.headersSent) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
+        if (!finished && !res.headersSent) {
+          res.writeHead(500, {
+            'Content-Type': 'application/json',
+            Connection: 'close',
+          });
           res.end(
             JSON.stringify({
               jsonrpc: '2.0',
@@ -169,6 +251,10 @@ export async function startHTTPProxy(
             })
           );
         }
+      } finally {
+        if (activeConnections.has(entry)) {
+          await cleanupConnection(entry, 'request completed');
+        }
       }
     }
   );
@@ -177,8 +263,13 @@ export async function startHTTPProxy(
     console.error(`${name} HTTP proxy started on http://${host}:${port}`);
   });
 
-  const shutdown = () => {
-    console.error(`${name} shutting down...`);
+  const shutdown = async () => {
+    console.error(
+      `${name} shutting down, closing ${activeConnections.size} active connections...`
+    );
+    for (const entry of activeConnections) {
+      await cleanupConnection(entry, 'server shutdown').catch(() => {});
+    }
     httpServer.close();
     process.exit(0);
   };

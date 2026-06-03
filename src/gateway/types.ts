@@ -71,3 +71,17 @@ export interface SourceRateLimit {
   count: number;
   resetAt: number;
 }
+
+export interface CheckRequest {
+  command: string;
+  source?: string;
+}
+
+export interface CheckResponse {
+  command: string;
+  category: 'whitelisted' | 'red_zone' | 'blacklisted' | 'unknown';
+  blocked: boolean;
+  reason?: string;
+  requires_authorization: boolean;
+  source?: string;
+}

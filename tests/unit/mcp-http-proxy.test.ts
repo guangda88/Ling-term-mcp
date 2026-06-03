@@ -22,12 +22,14 @@ jest.mock('http', () => {
 jest.mock('@modelcontextprotocol/sdk/server/index.js', () => ({
   Server: jest.fn().mockImplementation(() => ({
     connect: jest.fn(),
+    close: jest.fn().mockResolvedValue(undefined),
   })),
 }));
 
 jest.mock('@modelcontextprotocol/sdk/server/streamableHttp.js', () => ({
   StreamableHTTPServerTransport: jest.fn().mockImplementation(() => ({
     handleRequest: jest.fn(),
+    close: jest.fn().mockResolvedValue(undefined),
   })),
 }));
 
@@ -51,13 +53,26 @@ function mockReq(
 
 function mockRes() {
   const headers: Record<string, string> = {};
+  const listeners: Record<string, Array<(...args: any[]) => void>> = {};
 
   const res = {
     writeHead: jest.fn((_code: number, hdrs?: Record<string, string>) => {
       if (hdrs) Object.assign(headers, hdrs);
     }),
+    setHeader: jest.fn((key: string, value: string) => {
+      headers[key.toLowerCase()] = value;
+    }),
     end: jest.fn(),
     headersSent: false,
+    writableEnded: false,
+    on: jest.fn((event: string, handler: (...args: any[]) => void) => {
+      if (!listeners[event]) listeners[event] = [];
+      listeners[event].push(handler);
+    }),
+    emit: jest.fn((event: string, ...args: any[]) => {
+      (listeners[event] || []).forEach((h) => h(...args));
+    }),
+    destroy: jest.fn(),
   } as unknown as ServerResponse;
 
   return { res, headers };
@@ -296,6 +311,87 @@ describe('MCP HTTP Proxy Middleware', () => {
       const retryAfter = parseInt(r.headers['Retry-After'], 10);
       expect(retryAfter).toBeGreaterThan(0);
       expect(retryAfter).toBeLessThanOrEqual(5);
+    });
+  });
+
+  describe('request timeout and connection cleanup', () => {
+    it('returns 500 when handleRequest throws', async () => {
+      await initProxy({});
+
+      const req = mockReq({ url: '/mcp', method: 'POST' });
+      const { res } = mockRes();
+
+      const { StreamableHTTPServerTransport } = jest.requireMock(
+        '@modelcontextprotocol/sdk/server/streamableHttp.js'
+      );
+      StreamableHTTPServerTransport.mockReturnValueOnce({
+        handleRequest: jest.fn().mockRejectedValue(new Error('test error')),
+        close: jest.fn().mockResolvedValue(undefined),
+      });
+
+      await capturedHandler!(req, res);
+
+      expect((res as any).writeHead.mock.calls[0]?.[0]).toBe(500);
+    });
+
+    it('cleans up connection after handleRequest completes', async () => {
+      await initProxy({});
+
+      const req = mockReq({ url: '/mcp', method: 'POST' });
+      const { res } = mockRes();
+      const mockTransportClose = jest.fn().mockResolvedValue(undefined);
+
+      const { StreamableHTTPServerTransport } = jest.requireMock(
+        '@modelcontextprotocol/sdk/server/streamableHttp.js'
+      );
+      StreamableHTTPServerTransport.mockReturnValueOnce({
+        handleRequest: jest.fn().mockResolvedValue(undefined),
+        close: mockTransportClose,
+      });
+
+      await capturedHandler!(req, res);
+
+      expect(mockTransportClose).toHaveBeenCalled();
+    });
+
+    it('accepts requestTimeoutMs option', async () => {
+      capturedHandler = null;
+      if (cleanup) cleanup();
+      cleanup = await startHTTPProxy({
+        createServer: () =>
+          ({
+            connect: jest.fn(),
+            close: jest.fn().mockResolvedValue(undefined),
+          }) as any,
+        name: 'test',
+        port: 19999,
+        host: '127.0.0.1',
+        requestTimeoutMs: 50,
+      });
+
+      const req = mockReq({ url: '/mcp', method: 'POST' });
+      const { res } = mockRes();
+      const mockTransportClose = jest.fn().mockResolvedValue(undefined);
+      const mockServerClose = jest.fn().mockResolvedValue(undefined);
+
+      const { StreamableHTTPServerTransport } = jest.requireMock(
+        '@modelcontextprotocol/sdk/server/streamableHttp.js'
+      );
+      StreamableHTTPServerTransport.mockReturnValueOnce({
+        handleRequest: jest.fn().mockResolvedValue(undefined),
+        close: mockTransportClose,
+      });
+      const { Server } = jest.requireMock(
+        '@modelcontextprotocol/sdk/server/index.js'
+      );
+      Server.mockReturnValueOnce({
+        connect: jest.fn(),
+        close: mockServerClose,
+      });
+
+      await capturedHandler!(req, res);
+
+      expect((res as any).end).toHaveBeenCalled();
     });
   });
 

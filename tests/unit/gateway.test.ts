@@ -1,5 +1,45 @@
 import { CommandQueue } from '../../src/gateway/queue';
+import { startGatewayServer } from '../../src/gateway/server';
 import type { DispatchRequest } from '../../src/gateway/types';
+import http from 'http';
+
+function httpRequest(
+  port: number,
+  method: string,
+  path: string,
+  body?: unknown
+): Promise<{ status: number; data: unknown }> {
+  return new Promise((resolve, reject) => {
+    const payload = body ? JSON.stringify(body) : '';
+    const req = http.request(
+      {
+        hostname: '127.0.0.1',
+        port,
+        path,
+        method,
+        headers: body
+          ? {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(payload),
+            }
+          : {},
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk: Buffer) => (data += chunk.toString()));
+        res.on('end', () => {
+          resolve({
+            status: res.statusCode || 0,
+            data: JSON.parse(data || '{}'),
+          });
+        });
+      }
+    );
+    req.on('error', reject);
+    if (body) req.write(payload);
+    req.end();
+  });
+}
 
 describe('CommandQueue', () => {
   let queue: CommandQueue;
@@ -178,6 +218,115 @@ describe('CommandQueue', () => {
 
       const history = queue.getHistory(3);
       expect(history).toHaveLength(3);
+    });
+  });
+
+  describe('/v1/check endpoint', () => {
+    let port: number;
+
+    beforeAll(async () => {
+      port = 19530 + Math.floor(Math.random() * 1000);
+      await startGatewayServer(port);
+      await new Promise((r) => setTimeout(r, 200));
+    });
+
+    it('should categorize whitelisted command', async () => {
+      const res = await httpRequest(port, 'POST', '/v1/check', {
+        command: 'echo hello',
+        source: 'lingflow_plus',
+      });
+      expect(res.status).toBe(200);
+      const data = res.data as Record<string, unknown>;
+      expect(data.category).toBe('whitelisted');
+      expect(data.blocked).toBe(false);
+      expect(data.requires_authorization).toBe(false);
+    });
+
+    it('should categorize blacklisted command', async () => {
+      const res = await httpRequest(port, 'POST', '/v1/check', {
+        command: 'rm -rf /tmp/test',
+        source: 'lingflow_plus',
+      });
+      expect(res.status).toBe(403);
+      const data = res.data as Record<string, unknown>;
+      expect(data.category).toBe('blacklisted');
+      expect(data.blocked).toBe(true);
+      expect(data.requires_authorization).toBe(true);
+    });
+
+    it('should categorize red_zone command', async () => {
+      const res = await httpRequest(port, 'POST', '/v1/check', {
+        command: 'docker ps',
+        source: 'lingflow_plus',
+      });
+      expect(res.status).toBe(200);
+      const data = res.data as Record<string, unknown>;
+      expect(data.category).toBe('red_zone');
+      expect(data.blocked).toBe(false);
+      expect(data.requires_authorization).toBe(true);
+    });
+
+    it('should categorize unknown command', async () => {
+      const res = await httpRequest(port, 'POST', '/v1/check', {
+        command: 'mycustomtool --flag',
+        source: 'lingflow_plus',
+      });
+      expect(res.status).toBe(200);
+      const data = res.data as Record<string, unknown>;
+      expect(data.category).toBe('unknown');
+      expect(data.blocked).toBe(false);
+      expect(data.requires_authorization).toBe(false);
+    });
+
+    it('should detect dangerous pattern in red_zone', async () => {
+      const res = await httpRequest(port, 'POST', '/v1/check', {
+        command: 'find /tmp -exec rm {} \\;',
+        source: 'lingflow_plus',
+      });
+      expect(res.status).toBe(200);
+      const data = res.data as Record<string, unknown>;
+      expect(data.category).toBe('red_zone');
+      expect(data.requires_authorization).toBe(true);
+    });
+
+    it('should return 400 for missing command', async () => {
+      const res = await httpRequest(port, 'POST', '/v1/check', {
+        source: 'lingflow_plus',
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it('should return 400 for invalid JSON', async () => {
+      const res = await new Promise<{
+        status: number;
+        data: unknown;
+      }>((resolve, reject) => {
+        const req = http.request(
+          {
+            hostname: '127.0.0.1',
+            port,
+            path: '/v1/check',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+          (response) => {
+            let d = '';
+            response.on('data', (chunk: Buffer) => (d += chunk.toString()));
+            response.on('end', () => {
+              resolve({
+                status: response.statusCode || 0,
+                data: JSON.parse(d || '{}'),
+              });
+            });
+          }
+        );
+        req.on('error', reject);
+        req.write('not json');
+        req.end();
+      });
+      expect(res.status).toBe(400);
     });
   });
 
