@@ -21,6 +21,12 @@ import {
 } from '../sessions/store.js';
 import { hashOutput } from '../audit/snapshot.js';
 import { checkRedZoneAuthorization } from './authorize.js';
+import {
+  DEFAULT_TIMEOUT,
+  MAX_TIMEOUT,
+  isCwdAllowed,
+  truncateOutput,
+} from '../common/command_utils.js';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -52,17 +58,6 @@ const SESSION_ENV_BLOCKLIST = new Set([
   'BASH_FUNC_',
 ]);
 
-const BLOCKED_CWD_PREFIXES = ['/etc', '/root', '/var', '/boot', '/sbin'];
-
-export function isCwdAllowed(resolvedPath: string): boolean {
-  for (const prefix of BLOCKED_CWD_PREFIXES) {
-    if (resolvedPath.startsWith(prefix + '/') || resolvedPath === prefix) {
-      return false;
-    }
-  }
-  return true;
-}
-
 const SHELL_BUILTINS = new Set([
   'export',
   'set',
@@ -75,12 +70,6 @@ const SHELL_BUILTINS = new Set([
   'local',
   'declare',
 ]);
-
-const DEFAULT_TIMEOUT = 60000;
-const MAX_TIMEOUT = 600000;
-const MAX_OUTPUT_LENGTH = 10000;
-const OUTPUT_HEAD = 5000;
-const OUTPUT_TAIL = 5000;
 
 export function buildSafeEnv(
   sessionEnv?: Record<string, string>
@@ -101,16 +90,6 @@ export function buildSafeEnv(
     }
   }
   return safeEnv;
-}
-
-function truncateOutput(output: string): string {
-  if (output.length <= MAX_OUTPUT_LENGTH) {
-    return output;
-  }
-  const head = output.slice(0, OUTPUT_HEAD);
-  const tail = output.slice(-OUTPUT_TAIL);
-  const omitted = output.length - OUTPUT_HEAD - OUTPUT_TAIL;
-  return `${head}\n\n... [${omitted} characters omitted] ...\n\n${tail}`;
 }
 
 function parseCdTarget(command: string): string | null {

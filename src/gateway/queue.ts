@@ -14,37 +14,19 @@ import { promisify } from 'util';
 import * as path from 'path';
 import { hashOutput } from '../audit/snapshot.js';
 import { buildSafeEnv } from '../tools/execute_command.js';
+import {
+  DEFAULT_TIMEOUT,
+  MAX_TIMEOUT,
+  isCwdAllowed,
+  truncateOutput,
+} from '../common/command_utils.js';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
-const DEFAULT_TIMEOUT = 60000;
-const MAX_TIMEOUT = 600000;
-const MAX_OUTPUT_LENGTH = 10000;
-const OUTPUT_HEAD = 5000;
-const OUTPUT_TAIL = 5000;
 const MAX_HISTORY = 1000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 60;
-
-const BLOCKED_CWD_PREFIXES = ['/etc', '/root', '/var', '/boot', '/sbin'];
-
-function isCwdAllowed(resolvedPath: string): boolean {
-  for (const prefix of BLOCKED_CWD_PREFIXES) {
-    if (resolvedPath.startsWith(prefix + '/') || resolvedPath === prefix) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function truncateOutput(output: string): string {
-  if (output.length <= MAX_OUTPUT_LENGTH) return output;
-  const head = output.slice(0, OUTPUT_HEAD);
-  const tail = output.slice(-OUTPUT_TAIL);
-  const omitted = output.length - OUTPUT_HEAD - OUTPUT_TAIL;
-  return `${head}\n\n... [${omitted} characters omitted] ...\n\n${tail}`;
-}
 
 interface QueuedCommand {
   request_id: string;
@@ -120,7 +102,9 @@ export class CommandQueue {
       }
     }
 
-    this.executeAsync(entry).catch(() => {});
+    this.executeAsync(entry).catch((err) => {
+      console.error('[gateway] executeAsync failed:', err);
+    });
 
     return {
       request_id: requestId,

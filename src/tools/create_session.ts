@@ -7,7 +7,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { saveSession } from '../sessions/store.js';
-import { isCwdAllowed } from '../tools/execute_command.js';
+import { isCwdAllowed } from '../common/command_utils.js';
 
 /**
  * Create session tool definition
