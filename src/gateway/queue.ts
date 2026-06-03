@@ -67,7 +67,7 @@ export class CommandQueue {
     const commandForValidation = request.command;
     const securityCheck = securityValidator.validateCommand(
       commandForValidation,
-      request.shell ? [] : [],
+      [],
       request.shell ?? false
     );
     if (!securityCheck.valid) {

@@ -9,6 +9,7 @@ import type {
   BehavioralRule,
 } from '../protocol/types.js';
 import { getRegistryContext } from './registry_loader.js';
+import { LING_FAMILY_MEMBERS } from '../security/identity.js';
 
 const RULES: BehavioralRule[] = [
   {
@@ -212,20 +213,9 @@ const RULES: BehavioralRule[] = [
 
       if (!isSelfDriven) return null;
 
-      const memberDirs: Record<string, string> = {
-        lingclaude: '/home/ai/lingclaude',
-        lingflow: '/home/ai/lingflow',
-        lingflow_plus: '/home/ai/lingflow_plus',
-        lingyang: '/home/ai/lingyang',
-        lingweb: '/home/ai/lingweb',
-        lingzhi: '/home/ai/lingzhi',
-        lingresearch: '/home/ai/lingresearch',
-        lingminopt: '/home/ai/lingminopt',
-        lingtongask: '/home/ai/lingtongask',
-        lingxi: '/home/ai/lingxi',
-        lingmessage: '/home/ai/lingmessage',
-        zhibridge: '/home/ai/zhibridge',
-      };
+      const memberDirs: Record<string, string> = Object.fromEntries(
+        LING_FAMILY_MEMBERS.map((m) => [m.englishName, m.directory])
+      );
 
       const callerDir = memberDirs[caller];
       if (!callerDir) return null;
