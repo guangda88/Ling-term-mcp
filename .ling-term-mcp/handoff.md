@@ -28,7 +28,7 @@
 - 单元+集成: 199/199 ✅ | E2E: 5/5 ✅ | TypeScript: clean ✅ | Build: ✅
 
 ## 会话记录
-- 2026-06-03: SDT第7次执行(4/4通过, 199/199全绿), 回复L1-L4提案/安全架构元讨论/PG RSS误判纠正/Token调查等线程, 10文件待提交(+523行)
+- 2026-06-03: SDT第7次执行(4/4通过, 199/199全绿), 技术债务修复P0/P1(共享utils提取+授权命令绑定+gateway逻辑修正), 回复L1-L4/安全架构/PG RSS/Provider告警等线程, 3个commit(1d36447/1619ed3/d8bbab7)
 - 2026-06-02: SDT第6次执行(4/4通过, 193/193全绿), HTTP/2 SSE兼容性修复(Connection:close+res.destroy), 审计: 15sess/11cmd/0viol, CRUSH.md会话生命周期协议添加, 回复引用监控机/SEC-LM-01/OOM治理/启动自报等线程
 - 2026-06-01: SDT第5次执行(4/4通过, 184/184测试全绿), 审计报告: 13session/11cmd/0违规
 - 2026-05-31: 唤醒协议+SDT第4次执行(4/4), 回复灵壳v3/引用监控机/自然语言局限线程, 红区授权提交(5a65663)
@@ -77,6 +77,14 @@ execute_command, sync_terminal, list_sessions, create_session, destroy_session, 
 - safe-bash对非Crush通道（SSH/cron/脚本）仍有效，保留为补充防护
 - 方案B（delete_watcher事前拦截）是目前唯一能覆盖Crush bash通道的技术方案
 
+## 技术债务修复（本次会话，commit d8bbab7）
+
+- P0 #4: 提取共享常量/工具到 `src/common/command_utils.ts`（isCwdAllowed, truncateOutput, DEFAULT_TIMEOUT等）
+- P0 #5: 授权绑定到具体命令（authorize.ts command字段+checkRedZoneAuthorization验证）
+- P0 #6: contracts.ts使用identity.ts的LING_FAMILY_MEMBERS（已验证，原本就是动态引用）
+- P1 #1: queue.ts异步错误不再静默（.catch→console.error）
+- P1 #14: gateway /v1/check blocked命令不再标记为requiresAuth
+
 ## 阻塞项
 
-- 无（方案A+C已完成代码实现，覆盖范围有限但非灵犀可控）
+- 无
