@@ -109,7 +109,7 @@ export function startGatewayServer(port?: number): Promise<void> {
         const cmd = checkReq.command;
         const category = securityValidator.categorize(cmd);
         const blocked = category === 'blacklisted';
-        const requiresAuth = category === 'red_zone' || blocked;
+        const requiresAuth = category === 'red_zone';
         const response: CheckResponse = {
           command: cmd,
           category,

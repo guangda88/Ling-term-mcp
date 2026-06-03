@@ -251,7 +251,7 @@ describe('CommandQueue', () => {
       const data = res.data as Record<string, unknown>;
       expect(data.category).toBe('blacklisted');
       expect(data.blocked).toBe(true);
-      expect(data.requires_authorization).toBe(true);
+      expect(data.requires_authorization).toBe(false);
     });
 
     it('should categorize red_zone command', async () => {

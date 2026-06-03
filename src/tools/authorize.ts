@@ -5,6 +5,7 @@ interface AuthorizationRequest {
   id: string;
   caller: string;
   operation: string;
+  command?: string;
   details: Record<string, unknown>;
   created_at: string;
   expires_at: string;
@@ -52,6 +53,11 @@ export const requireAuthorization = {
           type: 'string',
           description: 'Description of the operation requiring authorization',
         },
+        command: {
+          type: 'string',
+          description:
+            'Optional command string to bind this authorization to. If provided, only this exact command can use the authorization.',
+        },
         details: {
           type: 'object',
           description: 'Additional details about the operation',
@@ -66,10 +72,12 @@ export const requireAuthorization = {
     const {
       caller,
       operation,
+      command,
       details = {},
     } = args as {
       caller: string;
       operation: string;
+      command?: string;
       details?: Record<string, unknown>;
     };
 
@@ -109,6 +117,7 @@ export const requireAuthorization = {
       id,
       caller,
       operation,
+      command,
       details,
       created_at: now.toISOString(),
       expires_at: new Date(now.getTime() + AUTH_TTL_MS).toISOString(),
@@ -331,7 +340,7 @@ export function getAuthorizationStatus(
 
 export function checkRedZoneAuthorization(
   authorizationId: string,
-  _command: string
+  command: string
 ): { allowed: boolean; error?: string } {
   const req = requests.get(authorizationId);
   if (!req) {
@@ -350,6 +359,12 @@ export function checkRedZoneAuthorization(
     return {
       allowed: false,
       error: `Authorization is ${req.status} (must be approved)`,
+    };
+  }
+  if (req.command && req.command !== command) {
+    return {
+      allowed: false,
+      error: `Authorization bound to '${req.command}' but used for '${command}'`,
     };
   }
   return { allowed: true };
