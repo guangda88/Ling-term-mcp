@@ -83,6 +83,12 @@ export const LING_FAMILY_MEMBERS: readonly LingMember[] = [
     directory: '/home/ai/zhibridge',
     role: '跨平台通信桥梁',
   },
+  {
+    name: '灵创',
+    englishName: 'lingcreate',
+    directory: '/home/ai/lingcreate',
+    role: '多模态生成',
+  },
 ] as const;
 
 const MEMBER_SET: ReadonlySet<string> = new Set(

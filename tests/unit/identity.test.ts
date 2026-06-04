@@ -10,8 +10,8 @@ import {
 } from '../../src/security/identity';
 
 describe('identity registry', () => {
-  it('should have exactly 12 members', () => {
-    expect(LING_FAMILY_MEMBERS.length).toBe(12);
+  it('should have exactly 13 members', () => {
+    expect(LING_FAMILY_MEMBERS.length).toBe(13);
   });
 
   it('should recognize all known members', () => {
@@ -28,6 +28,7 @@ describe('identity registry', () => {
       'lingminopt',
       'lingyang',
       'zhibridge',
+      'lingcreate',
     ];
     for (const name of known) {
       expect(isKnownMember(name)).toBe(true);
@@ -52,10 +53,11 @@ describe('identity registry', () => {
     expect(getMember('unknown')).toBeUndefined();
   });
 
-  it('getMemberNames should return all 12 english names', () => {
+  it('getMemberNames should return all 13 english names', () => {
     const names = getMemberNames();
-    expect(names.length).toBe(12);
+    expect(names.length).toBe(13);
     expect(names).toContain('lingxi');
     expect(names).toContain('lingflow');
+    expect(names).toContain('lingcreate');
   });
 });
