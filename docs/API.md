@@ -4,7 +4,7 @@
 
 Ling-term-mcp (灵犀) implements the Model Context Protocol (MCP) to provide terminal operations capabilities to AI assistants.
 
-- **Version**: 1.1.0
+- **Version**: 1.2.0
 - **Transport**: stdio (StdioServerTransport)
 
 ## Tools

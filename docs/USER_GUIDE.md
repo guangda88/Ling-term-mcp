@@ -44,7 +44,7 @@ npm link
 ling-term-mcp --version
 ```
 
-Expected output: `1.1.0`
+Expected output: `1.2.0`
 
 ### 2. Start the Server
 
