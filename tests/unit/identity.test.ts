@@ -7,11 +7,17 @@ import {
   getMember,
   getMemberNames,
   LING_FAMILY_MEMBERS,
+  KNOWN_INFRASTRUCTURE,
 } from '../../src/security/identity';
 
 describe('identity registry', () => {
-  it('should have exactly 13 members', () => {
-    expect(LING_FAMILY_MEMBERS.length).toBe(13);
+  it('should have exactly 12 members', () => {
+    expect(LING_FAMILY_MEMBERS.length).toBe(12);
+  });
+
+  it('should have 1 infrastructure service', () => {
+    expect(KNOWN_INFRASTRUCTURE.length).toBe(1);
+    expect(KNOWN_INFRASTRUCTURE[0].englishName).toBe('zhibridge');
   });
 
   it('should recognize all known members', () => {
@@ -53,9 +59,9 @@ describe('identity registry', () => {
     expect(getMember('unknown')).toBeUndefined();
   });
 
-  it('getMemberNames should return all 13 english names', () => {
+  it('getMemberNames should return all 12 member names', () => {
     const names = getMemberNames();
-    expect(names.length).toBe(13);
+    expect(names.length).toBe(12);
     expect(names).toContain('lingxi');
     expect(names).toContain('lingflow');
     expect(names).toContain('lingcreate');

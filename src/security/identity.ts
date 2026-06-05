@@ -78,12 +78,6 @@ export const LING_FAMILY_MEMBERS: readonly LingMember[] = [
     role: '对外联络宣传',
   },
   {
-    name: '智桥',
-    englishName: 'zhibridge',
-    directory: '/home/ai/zhibridge',
-    role: '跨平台通信桥梁',
-  },
-  {
     name: '灵创',
     englishName: 'lingcreate',
     directory: '/home/ai/lingcreate',
@@ -91,12 +85,26 @@ export const LING_FAMILY_MEMBERS: readonly LingMember[] = [
   },
 ] as const;
 
+// Non-member infrastructure services that are permitted callers
+// (not 灵族 members, but need execute_command access)
+export const KNOWN_INFRASTRUCTURE: readonly LingMember[] = [
+  {
+    name: '智桥',
+    englishName: 'zhibridge',
+    directory: '/home/ai/zhibridge',
+    role: '跨平台通信桥梁（灵通+管辖，非灵族成员）',
+  },
+] as const;
+
 const MEMBER_SET: ReadonlySet<string> = new Set(
-  LING_FAMILY_MEMBERS.map((m) => m.englishName)
+  [...LING_FAMILY_MEMBERS, ...KNOWN_INFRASTRUCTURE].map((m) => m.englishName)
 );
 
 const MEMBER_MAP: ReadonlyMap<string, LingMember> = new Map(
-  LING_FAMILY_MEMBERS.map((m) => [m.englishName, m])
+  [...LING_FAMILY_MEMBERS, ...KNOWN_INFRASTRUCTURE].map((m) => [
+    m.englishName,
+    m,
+  ])
 );
 
 export function isKnownMember(caller: string): boolean {
