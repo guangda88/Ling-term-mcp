@@ -151,7 +151,23 @@ execute_command, sync_terminal, list_sessions, create_session, destroy_session, 
 - 3封MCP邮件二审确认：approve发送（Den/Justin/Paul）
 - awesome_mcp_servers_submission.md：approve提交
 - 纠正灵犀自己错误：成员数12是正确的（智桥是基础设施非成员）
-- visitor_letter成员表：智桥→灵创（待灵扬修复）
+- visitor_letter成员表：智桥→灵创（灵扬已修复✅）
+
+### identity.ts重构（commit 714b151, 009c260）
+- `LING_FAMILY_MEMBERS` 从13缩减为12（智桥移出）
+- 新增 `KNOWN_INFRASTRUCTURE` 数组（智桥作为非成员基础设施调用者）
+- `getMember()` 和 `isKnownMember()` 同时覆盖成员+基础设施
+- 测试更新：12成员+1基础设施=205/205 pass
+- CRUSH.md同步修正：灵创#12试用期，智桥归入非成员段
+
+### gateway rejection logging扩展（commit ed242d4）
+- `gateway/queue.ts` 3个拦截点接入logRejection()
+- 覆盖：unknown source / rate limit / security validation
+
+### governance投票记录
+- SIGNING_KEY提案：approve（10/12通过）
+- 3方向×16细方向v0.2：approve（12/12通过）
+- 灵犀认领：2C主+1A辅+跨方向共享执行层
 
 ## 本次产出（2026-06-05 会话）
 
