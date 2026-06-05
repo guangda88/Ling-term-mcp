@@ -19,7 +19,7 @@
 - **会话快照**: 会话结束时生成完整的行为摘要和审计轨迹
 - **元认知审计**: 评估 AI 决策质量，检测推理偏差和模式异常
 - **性能监控**: 内置 PerformanceMonitor，实时追踪 P50/P95/P99 指标
-- **高覆盖测试**: 185 个测试，15 个测试套件，全部通过
+- **高覆盖测试**: 205 个测试，16 个测试套件，全部通过
 
 ---
 
@@ -209,7 +209,7 @@ shutdown, reboot, halt, chmod, chown, passwd, systemctl, ...
 ## 测试
 
 ```bash
-npm test              # 单元测试（185 tests，15 suites）
+npm test              # 单元测试（205 tests，16 suites）
 npm run test:coverage # 覆盖率报告
 npm run test:e2e      # E2E 测试（Node.js test runner）
 npm run test:stress   # 压力测试
