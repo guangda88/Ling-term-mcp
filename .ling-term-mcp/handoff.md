@@ -178,3 +178,40 @@ execute_command, sync_terminal, list_sessions, create_session, destroy_session, 
   - `execute_command.ts` 5个拦截点全部接入 `logRejection()`（blacklisted/unknown/red_zone/pattern/builtin_pattern）
   - `audit_report.ts` 新增 `rejections` 字段（total/by_category/by_caller/recent），关闭审计盲区
   - 5个单元测试，204/204全绿，tsc clean
+
+## v1.2.0版本发布（2026-06-06）
+
+### 版本号
+- package.json: 1.1.0 → 1.2.0
+- VERSION: 1.1.0 → 1.2.0
+- CHANGELOG.md: v1.2.0段落（rejection logging + identity refactor + gateway health）
+- README.md: 185→205 tests, 15→16 suites
+- SECURITY_AUDIT.md: 205 passed
+- API.md/USER_GUIDE.md: version 1.2.0
+
+### rejection logging完整覆盖
+- `execute_command.ts`: 7个logRejection点（5安全拦截+2 red-zone）
+- `gateway/queue.ts`: 4个logRejection点（unknown/rate/security+1）
+- `gateway/coordinator.ts`: 3个logRejection点（unknown/unauthorized+1）
+- **总计14个拦截点全部覆盖**
+
+### identity.ts重构
+- LING_FAMILY_MEMBERS: 12子（智桥移出）
+- KNOWN_INFRASTRUCTURE: 智桥（非成员基础设施调用者）
+- getMember()/isKnownMember()同时覆盖成员+基础设施
+
+### SDT Round 11 (2026-06-06)
+- SDT-lx-001: handoff backup ✅
+- SDT-lx-002: 0 sessions, 0 violations ✅
+- SDT-lx-003: CRUSH.md/AGENTS.md 0 drift ✅
+- SDT-lx-004: 205/205 tests, 16 suites ✅
+
+### governance投票
+- SIGNING_KEY: approve（10/12通过，等用户设置密钥）
+- 3方向v0.2: approve（12/12通过，灵犀认领2C主+1A辅）
+- 调度闭环v1.0: approve
+
+### 灵扬审核完成
+- 3封MCP邮件：✅ approve发送
+- awesome-mcp提交：✅ approve
+- 纠正灵犀自己的12→13错误（智桥是基础设施非成员）
