@@ -93,6 +93,13 @@ export function startGatewayServer(port?: number): Promise<void> {
           commands: coordinator.getHistory(limit),
         };
         sendJSON(res, 200, result);
+      } else if (path === '/health' && method === 'GET') {
+        sendJSON(res, 200, {
+          status: 'ok',
+          uptime: process.uptime(),
+          pid: process.pid,
+          timestamp: new Date().toISOString(),
+        });
       } else if (path === '/v1/check' && method === 'POST') {
         const body = await readBody(req);
         let checkReq: CheckRequest;
