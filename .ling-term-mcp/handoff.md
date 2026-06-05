@@ -1,7 +1,26 @@
 # Handoff v2 — 灵犀会话交接
-> 更新: 2026-06-04 | 状态: active
+> 更新: 2026-06-05 | 状态: active
+
+## 3条方向讨论（2026-06-05）
+
+灵族总目标从4+1改为3条方向，灵犀全程参与讨论（2轮LingBus帖子+4条反向思维）。
+
+**灵犀认领**：
+- 方向1 / 1A 身份与运行安全 — **辅**（策略执行+异常处置）
+- 方向2 / 2C 终端执行安全 — **主**（safe-bash网关、命令合规率审计）
+- 跨方向共享执行层 — 方向3所有成员的终端执行入口
+
+**灵犀待决议项**：
+- safe-bash黑名单/白名单修改权限：灵牛建议选项C（灵犀提案+灵克审计双签），等广大老师决策
+- SDT-lx-003方向标注：主方向1辅方向2（已自行标注）
+
+**讨论产出**：
+- 灵通+v0.2认领方案已采纳灵犀全部建议（策略设计vs执行分离+跨方向共享执行层）
+- 灵网/智桥决策面板(:8300/:8767)已上线——灵犀2C是决策面板执行链的最后一道安全防线
+- 灵克R14-001审计智桥gateway：P0(E2E加密默认关闭)+3个P1
 
 ## 当前任务
+- ✅ P1 修复 identity.ts 缺 lingcreate + CRUSH.md 名称不匹配 (commit a10fbf9)
 - ✅ P0-1 命令执行网关（gateway/ 四文件已实现）
 - ✅ P0-3 Cube Sandbox — 已被gateway安全模型覆盖
 - ✅ P1-4 推送通知客户端（notify.ts，5个测试通过）
@@ -28,7 +47,9 @@
 - 单元+集成: 199/199 ✅ | E2E: 5/5 ✅ | TypeScript: clean ✅ | Build: ✅
 
 ## 会话记录
-- 2026-06-04: 唤醒协议, safe-bash fail-open→fail-closed修复(3处漏洞), 部署至~/.local/bin, SDT第8次执行(4/4通过, 199/199全绿), 回复灵克safe-bash审计确认, ack 56条LingBus消息
+- 2026-06-05: 中断恢复, P1修复 identity.ts添加lingcreate+CRUSH.md lingflowplus→lingflow_plus (commit a10fbf9), /health端点 (commit 18b0157), 回复5个治理议题(总目标分工/Handover链条/多指标/诚信指数/灵信分层), 199/199全绿, SDT第9次(4/4通过)
+- 2026-06-04(2): 中断恢复, P1修复 identity.ts添加lingcreate+CRUSH.md lingflowplus→lingflow_plus (commit a10fbf9), 199/199全绿, 回复灵克#158118审计确认
+- 2026-06-04(1): 唤醒协议, safe-bash fail-open→fail-closed修复(3处漏洞), 部署至~/.local/bin, SDT第8次执行(4/4通过, 199/199全绿), 回复灵克safe-bash审计确认, ack 56条LingBus消息
 - 2026-06-03: SDT第7次执行(4/4通过, 199/199全绿), 技术债务修复P0/P1(共享utils提取+授权命令绑定+gateway逻辑修正), 回复L1-L4/安全架构/PG RSS/Provider告警等线程, 3个commit(1d36447/1619ed3/d8bbab7)
 - 2026-06-02: SDT第6次执行(4/4通过, 193/193全绿), HTTP/2 SSE兼容性修复(Connection:close+res.destroy), 审计: 15sess/11cmd/0viol, CRUSH.md会话生命周期协议添加, 回复引用监控机/SEC-LM-01/OOM治理/启动自报等线程
 - 2026-06-01: SDT第5次执行(4/4通过, 184/184测试全绿), 审计报告: 13session/11cmd/0违规
@@ -49,10 +70,10 @@ execute_command, sync_terminal, list_sessions, create_session, destroy_session, 
 
 | SDT | 任务 | 优先级 | 间隔 | 上次执行 | 结果 | 连续次数 |
 |-----|------|--------|------|---------|------|---------|
-| SDT-lx-001 | session备份 | P2 | 12h | 2026-06-04 | ok: skip(17sess均为其他成员) | 7 |
-| SDT-lx-002 | 命令审计 | P2 | 24h | 2026-06-04 | ok: 17sess/16cmd/0viol | 7 |
-| SDT-lx-003 | 身份漂移检测 | P1 | 24h | 2026-06-04 | ok: CRUSH.md仅含灵创#13新增 | 7 |
-| SDT-lx-004 | 测试健康检查 | P2 | 24h | 2026-06-04 | ok: 199/199 pass | 8 |
+| SDT-lx-001 | session备份 | P2 | 12h | 2026-06-04 | ok: skip(0活跃session) | 8 |
+| SDT-lx-002 | 命令审计 | P2 | 24h | 2026-06-04 | ok: 0sess/0cmd/0viol | 8 |
+| SDT-lx-003 | 身份漂移检测 | P1 | 24h | 2026-06-04 | ok: CRUSH.md/AGENTS.md无漂移 | 8 |
+| SDT-lx-004 | 测试健康检查 | P2 | 24h | 2026-06-04 | ok: 199/199 pass | 9 |
 | SDT-lx-005 | MCP封装扫描 | P1 | weekly | 2026-06-03 | ok: 13svr/150tool/灵议封装/0mismatch | 3 |
 
 ## SDT-lx-005 首次扫描结果（2026-06-02）
@@ -102,3 +123,13 @@ execute_command, sync_terminal, list_sessions, create_session, destroy_session, 
 ## 阻塞项
 
 - 无
+
+## 本次产出（2026-06-05 会话）
+
+- 3条方向讨论：2轮LingBus帖子+4条反向思维，灵通+v0.2采纳灵犀全部建议
+- SDT方向标注：5个SDT全部标注primary/secondary方向（self_driven_tasks.json v1.1.0）
+- **safe-bash拦截日志增强（方向2C）**：
+  - 新增 `src/audit/rejection_log.ts` — 持久化记录被拦截的命令到 `~/.ling-term-mcp/rejections.jsonl`
+  - `execute_command.ts` 5个拦截点全部接入 `logRejection()`（blacklisted/unknown/red_zone/pattern/builtin_pattern）
+  - `audit_report.ts` 新增 `rejections` 字段（total/by_category/by_caller/recent），关闭审计盲区
+  - 5个单元测试，204/204全绿，tsc clean

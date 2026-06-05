@@ -7,6 +7,10 @@ import { getSessions } from '../sessions/store.js';
 import { isKnownMember, getMember } from '../security/identity.js';
 import type { DecisionRecord } from '../protocol/types.js';
 import { performanceMonitor } from '../monitoring/performance.js';
+import {
+  readRejections,
+  type RejectionRecord,
+} from '../audit/rejection_log.js';
 
 export interface ToolUsageStats {
   tool_name: string;
@@ -35,6 +39,12 @@ export interface AuditSummary {
   caller_stats: CallerStats[];
   top_commands: { command: string; count: number }[];
   violations: { rule: string; count: number }[];
+  rejections: {
+    total: number;
+    by_category: Record<string, number>;
+    by_caller: Record<string, number>;
+    recent: RejectionRecord[];
+  };
 }
 
 async function collectDecisions(): Promise<DecisionRecord[]> {
@@ -193,6 +203,27 @@ async function buildViolations(): Promise<{ rule: string; count: number }[]> {
     .sort((a, b) => b.count - a.count);
 }
 
+function buildRejections(): {
+  total: number;
+  by_category: Record<string, number>;
+  by_caller: Record<string, number>;
+  recent: RejectionRecord[];
+} {
+  const records = readRejections(20);
+  const by_category: Record<string, number> = {};
+  const by_caller: Record<string, number> = {};
+  for (const r of records) {
+    by_category[r.category] = (by_category[r.category] || 0) + 1;
+    by_caller[r.caller] = (by_caller[r.caller] || 0) + 1;
+  }
+  return {
+    total: records.length,
+    by_category,
+    by_caller,
+    recent: records.slice(-10),
+  };
+}
+
 export const auditReport = {
   definition: {
     name: 'audit_report',
@@ -296,11 +327,13 @@ export const auditReport = {
       caller_stats: buildCallerStats(decisions),
       top_commands: buildTopCommands(histories),
       violations: await buildViolations(),
+      rejections: buildRejections(),
     };
 
     if (format === 'detailed') {
       const perfMetrics = performanceMonitor.getMetrics();
       const perfHistory = performanceMonitor.getExecutionHistory(20);
+      const detailedRejections = readRejections(50);
       return {
         content: [
           {
@@ -308,6 +341,10 @@ export const auditReport = {
             text: JSON.stringify(
               {
                 ...summary,
+                rejections: {
+                  ...summary.rejections,
+                  recent: detailedRejections,
+                },
                 performance: {
                   metrics: perfMetrics,
                   recent_executions: perfHistory,

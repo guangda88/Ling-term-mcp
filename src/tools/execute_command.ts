@@ -20,6 +20,7 @@ import {
   appendDecisionRecord,
 } from '../sessions/store.js';
 import { hashOutput } from '../audit/snapshot.js';
+import { logRejection } from '../audit/rejection_log.js';
 import { checkRedZoneAuthorization } from './authorize.js';
 import {
   DEFAULT_TIMEOUT,
@@ -225,6 +226,14 @@ export const executeCommand = {
         const rawPatternCheck =
           securityValidator.validateCommandPatternsOnly(command);
         if (!rawPatternCheck.valid) {
+          logRejection({
+            command,
+            caller: caller ?? 'unknown',
+            reason: rawPatternCheck.error ?? 'pattern check failed',
+            category: 'builtin_pattern',
+            session_id,
+            shell,
+          });
           throw new Error(
             `Security validation failed: ${rawPatternCheck.error}`
           );
@@ -238,6 +247,14 @@ export const executeCommand = {
     const patternCheck =
       securityValidator.validateCommandPatternsOnly(commandForValidation);
     if (!patternCheck.valid) {
+      logRejection({
+        command,
+        caller: caller ?? 'unknown',
+        reason: patternCheck.error ?? 'pattern check failed',
+        category: 'pattern',
+        session_id,
+        shell,
+      });
       throw new Error(`Security validation failed: ${patternCheck.error}`);
     }
 
@@ -247,6 +264,14 @@ export const executeCommand = {
       console.error(
         `[security] Command rejected (blacklisted): "${command}" (caller: ${caller})`
       );
+      logRejection({
+        command,
+        caller: caller ?? 'unknown',
+        reason: 'blacklisted command',
+        category: 'blacklisted',
+        session_id,
+        shell,
+      });
       throw new Error(
         `Security validation failed: Command '${commandForValidation.split(' ')[0]}' is blacklisted`
       );
@@ -262,6 +287,14 @@ export const executeCommand = {
         console.error(
           `[security] Command rejected: "${command}" — ${securityCheck.error} (caller: ${caller})`
         );
+        logRejection({
+          command,
+          caller: caller ?? 'unknown',
+          reason: securityCheck.error ?? 'unknown command validation failed',
+          category: 'unknown',
+          session_id,
+          shell,
+        });
         throw new Error(`Security validation failed: ${securityCheck.error}`);
       }
     }
@@ -271,6 +304,14 @@ export const executeCommand = {
         console.error(
           `[security] Red-zone command requires authorization: "${command}" (caller: ${caller})`
         );
+        logRejection({
+          command,
+          caller: caller ?? 'unknown',
+          reason: 'red-zone command without authorization',
+          category: 'red_zone',
+          session_id,
+          shell,
+        });
         throw new Error(
           `Red-zone command '${commandForValidation.split(' ')[0]}' requires authorization. Use require_authorization tool first.`
         );
@@ -280,6 +321,14 @@ export const executeCommand = {
         console.error(
           `[security] Red-zone authorization denied: "${command}" — ${auth.error} (caller: ${caller})`
         );
+        logRejection({
+          command,
+          caller: caller ?? 'unknown',
+          reason: auth.error ?? 'authorization denied',
+          category: 'red_zone',
+          session_id,
+          shell,
+        });
         throw new Error(`Red-zone authorization failed: ${auth.error}`);
       }
       console.error(
