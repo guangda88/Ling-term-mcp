@@ -5,6 +5,43 @@ All notable changes to Ling-term-mcp (灵犀) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-06-05
+
+### Added
+
+#### Rejection Logging (Audit Blind Spot Fix)
+
+- **`src/audit/rejection_log.ts`** — JSONL persistence for security-rejected commands with auto-rotation (max 10MB)
+- **`execute_command.ts`** — all 5 rejection paths (blacklist, unknown command, red-zone, pattern, builtin pattern) now log to rejection_log
+- **`gateway/queue.ts`** — 3 rejection paths (unknown source, rate limit, security validation) logged
+- **`gateway/coordinator.ts`** — 2 rejection paths (unknown source, unauthorized critical) logged
+- **`audit_report.ts`** — new `rejections` field (total, by_category, by_caller, recent)
+- **`tests/unit/rejection_log.test.ts`** — 5 tests for write/rotation/read
+
+#### Identity Refactor
+
+- **`LING_FAMILY_MEMBERS`** reduced to 12 (zhibridge moved to `KNOWN_INFRASTRUCTURE`)
+- **`KNOWN_INFRASTRUCTURE`** new export for non-member permitted callers (zhibridge)
+- **`getMember()`** resolves both members and infrastructure
+
+#### Gateway Health Endpoint
+
+- **`/health`** endpoint on Streamable HTTP proxy (port 9529)
+
+### Fixed
+
+- **CRUSH.md** member table: zhibridge moved to non-member, lingcreate added as #12
+- **safe-bash** fail-open → fail-closed (3 vulnerabilities patched)
+- **identity.ts** lingcreate added to member list
+- **README.md** test count updated 185→205, 15→16 suites
+
+### Test Results
+
+- **205 tests, 16 suites, all passing**
+- TypeScript strict mode clean
+
+---
+
 ## [1.1.0] - 2026-04-10
 
 ### Added
