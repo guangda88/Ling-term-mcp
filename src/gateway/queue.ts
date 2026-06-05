@@ -9,6 +9,7 @@ import {
 } from './types.js';
 import { securityValidator } from '../security/validator.js';
 import { isKnownMember } from '../security/identity.js';
+import { logRejection } from '../audit/rejection_log.js';
 import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
@@ -47,6 +48,14 @@ export class CommandQueue {
 
   async dispatch(request: DispatchRequest): Promise<DispatchResponse> {
     if (!request.source || !isKnownMember(request.source)) {
+      logRejection({
+        command: request.command,
+        caller: request.source ?? 'unknown',
+        reason: `Unknown source: '${request.source}'`,
+        category: 'unknown',
+        session_id: request.session_id ?? undefined,
+        shell: request.shell ?? undefined,
+      });
       return {
         request_id: randomUUID(),
         status: 'rejected',
@@ -56,6 +65,14 @@ export class CommandQueue {
     }
 
     if (!this.checkRateLimit(request.source)) {
+      logRejection({
+        command: request.command,
+        caller: request.source,
+        reason: `Rate limit exceeded`,
+        category: 'unknown',
+        session_id: request.session_id ?? undefined,
+        shell: request.shell ?? undefined,
+      });
       return {
         request_id: randomUUID(),
         status: 'rejected',
@@ -71,6 +88,14 @@ export class CommandQueue {
       request.shell ?? false
     );
     if (!securityCheck.valid) {
+      logRejection({
+        command: request.command,
+        caller: request.source,
+        reason: securityCheck.error ?? 'security validation failed',
+        category: 'pattern',
+        session_id: request.session_id ?? undefined,
+        shell: request.shell ?? undefined,
+      });
       return {
         request_id: randomUUID(),
         status: 'rejected',
