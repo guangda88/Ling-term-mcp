@@ -13,6 +13,7 @@ import type {
   HistoryEntry,
 } from './types.js';
 import { isKnownMember } from '../security/identity.js';
+import { logRejection } from '../audit/rejection_log.js';
 
 export class Coordinator {
   private queue: CommandQueue;
@@ -42,6 +43,14 @@ export class Coordinator {
     }
 
     if (!isKnownMember(request.source)) {
+      logRejection({
+        command: request.command,
+        caller: request.source,
+        reason: `Unknown source: not a registered member`,
+        category: 'unknown',
+        session_id: request.session_id ?? undefined,
+        shell: request.shell ?? undefined,
+      });
       return {
         request_id: '',
         status: 'rejected',
@@ -54,6 +63,14 @@ export class Coordinator {
       request.priority === 'critical' &&
       !this.criticalSources.has(request.source)
     ) {
+      logRejection({
+        command: request.command,
+        caller: request.source,
+        reason: `Critical priority unauthorized for ${request.source}`,
+        category: 'unauthorized',
+        session_id: request.session_id ?? undefined,
+        shell: request.shell ?? undefined,
+      });
       return {
         request_id: '',
         status: 'rejected',

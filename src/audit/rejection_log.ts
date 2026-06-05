@@ -23,7 +23,8 @@ export interface RejectionRecord {
     | 'unknown'
     | 'red_zone'
     | 'pattern'
-    | 'builtin_pattern';
+    | 'builtin_pattern'
+    | 'unauthorized';
   session_id?: string;
   shell?: boolean;
 }
