@@ -2,17 +2,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-// Mock the rejection log module to use a temp directory
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rejection-test-'));
+const TMP_FILE = path.join(TMP_DIR, 'rejections.jsonl');
 
-// Override HOME so the module uses our temp dir
-process.env['HOME'] = TMP_DIR;
+// Use dedicated env var so tests never touch the production rejection log
+process.env['LING_TERM_REJECTION_LOG'] = TMP_FILE;
 
-// Import after env override
 import { logRejection, readRejections } from '../../src/audit/rejection_log';
-
-// Point the module's file to our temp file by re-importing
-// Since the module reads HOME at runtime via process.env, this works
 
 describe('rejection_log', () => {
   afterAll(() => {
@@ -25,10 +21,8 @@ describe('rejection_log', () => {
   });
 
   beforeEach(() => {
-    // Clear the rejection file before each test
-    const file = path.join(TMP_DIR, '.ling-term-mcp', 'rejections.jsonl');
     try {
-      fs.unlinkSync(file);
+      fs.unlinkSync(TMP_FILE);
     } catch {
       // file may not exist yet
     }
@@ -93,13 +87,11 @@ describe('rejection_log', () => {
   });
 
   it('should survive malformed lines in the file', () => {
-    const dir = path.join(TMP_DIR, '.ling-term-mcp');
-    const file = path.join(dir, 'rejections.jsonl');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(path.dirname(TMP_FILE), { recursive: true });
 
     // Write a valid record followed by garbage
     fs.writeFileSync(
-      file,
+      TMP_FILE,
       JSON.stringify({
         id: 'abc',
         timestamp: '2026-01-01T00:00:00Z',

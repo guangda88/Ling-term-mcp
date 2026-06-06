@@ -33,7 +33,9 @@ const REJECTION_DIR = path.join(
   process.env['HOME'] || '/home/ai',
   '.ling-term-mcp'
 );
-const REJECTION_FILE = path.join(REJECTION_DIR, 'rejections.jsonl');
+const REJECTION_FILE =
+  process.env['LING_TERM_REJECTION_LOG'] ||
+  path.join(REJECTION_DIR, 'rejections.jsonl');
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 function ensureDir(): void {
