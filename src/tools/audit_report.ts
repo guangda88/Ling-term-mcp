@@ -209,18 +209,18 @@ function buildRejections(): {
   by_caller: Record<string, number>;
   recent: RejectionRecord[];
 } {
-  const records = readRejections(20);
+  const all = readRejections(); // read all for accurate counts
   const by_category: Record<string, number> = {};
   const by_caller: Record<string, number> = {};
-  for (const r of records) {
+  for (const r of all) {
     by_category[r.category] = (by_category[r.category] || 0) + 1;
     by_caller[r.caller] = (by_caller[r.caller] || 0) + 1;
   }
   return {
-    total: records.length,
+    total: all.length,
     by_category,
     by_caller,
-    recent: records.slice(-10),
+    recent: all.slice(-10),
   };
 }
 
