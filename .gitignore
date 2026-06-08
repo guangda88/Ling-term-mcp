@@ -34,6 +34,9 @@ yarn-error.log*
 .env.local
 .env.*.local
 
+# Sensitive config (contains API keys)
+backends.json
+
 # Temporary files
 *.tmp
 *.bak

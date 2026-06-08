@@ -71,22 +71,30 @@ Ling-term-mcp/
 │   ├── index.ts              # MCP server entry point
 │   ├── cli.ts                # CLI binary entry point
 │   ├── tools/
-│   │   ├── create_session.ts
-│   │   ├── destroy_session.ts
-│   │   ├── execute_command.ts
-│   │   ├── list_sessions.ts
-│   │   └── sync_terminal.ts
+│   │   ├── execute_command.ts # Command execution
+│   │   ├── session.ts        # Session mgmt (list/create/destroy/sync)
+│   │   ├── audit_report.ts   # Audit stats + kill_storm alerts
+│   │   ├── authorize.ts      # Red-zone authorization
+│   │   ├── governance.ts     # Safe-bash dual-sign
+│   │   ├── proxy.ts          # MCP thin proxy
+│   │   └── (legacy modules still used internally)
 │   ├── sessions/
 │   │   └── store.ts          # Session persistence
 │   ├── security/
 │   │   ├── validator.ts      # SecurityValidator
-│   │   └── identity.ts       # 灵族 member registry
+│   │   ├── identity.ts       # 灵族 member registry
+│   │   └── list_governance.ts # Safe-bash list management
+│   ├── proxy/
+│   │   └── manager.ts        # MCP backend lifecycle
 │   ├── monitoring/
 │   │   └── performance.ts    # PerformanceMonitor
-│   └── audit/
-│       ├── contracts.ts      # Behavioral contracts
-│       ├── metacognitive.ts  # Metacognitive audit
-│       └── snapshot.ts       # Session snapshots
+│   ├── audit/
+│   │   ├── contracts.ts      # Behavioral contracts
+│   │   ├── metacognitive.ts  # Metacognitive audit
+│   │   ├── snapshot.ts       # Session snapshots
+│   │   └── rejection_log.ts  # Rejection persistence
+│   └── common/
+│       └── command_utils.ts  # Shared constants/utils
 ├── tests/
 │   ├── unit/
 │   ├── e2e/

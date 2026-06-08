@@ -1,9 +1,4 @@
-import {
-  requireAuthorization,
-  approveAuthorization,
-  listAuthorizations,
-  _resetForTesting,
-} from '../../src/tools/authorize';
+import { authorize, _resetForTesting } from '../../src/tools/authorize';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
@@ -22,9 +17,10 @@ beforeEach(async () => {
   }
 });
 
-describe('require_authorization', () => {
+describe('authorize require', () => {
   it('should create a pending authorization request', async () => {
-    const result = await requireAuthorization.handler({
+    const result = await authorize.handler({
+      command: 'require',
       caller: 'lingflow',
       operation: 'delete old log files',
     });
@@ -39,7 +35,8 @@ describe('require_authorization', () => {
   });
 
   it('should reject unknown caller', async () => {
-    const result = await requireAuthorization.handler({
+    const result = await authorize.handler({
+      command: 'require',
       caller: 'stranger',
       operation: 'do something',
     });
@@ -50,21 +47,24 @@ describe('require_authorization', () => {
   });
 
   it('should reject missing caller', async () => {
-    const result = await requireAuthorization.handler({
+    const result = await authorize.handler({
+      command: 'require',
       operation: 'do something',
     });
     expect(result.isError).toBe(true);
   });
 
   it('should reject missing operation', async () => {
-    const result = await requireAuthorization.handler({
+    const result = await authorize.handler({
+      command: 'require',
       caller: 'lingflow',
     });
     expect(result.isError).toBe(true);
   });
 
   it('should accept details object', async () => {
-    const result = await requireAuthorization.handler({
+    const result = await authorize.handler({
+      command: 'require',
       caller: 'lingxi',
       operation: 'modify shared config',
       details: { target: '/etc/hosts', reason: 'dns update' },
@@ -76,9 +76,10 @@ describe('require_authorization', () => {
   });
 });
 
-describe('approve_authorization', () => {
+describe('authorize approve', () => {
   it('should approve a pending request', async () => {
-    const createResult = await requireAuthorization.handler({
+    const createResult = await authorize.handler({
+      command: 'require',
       caller: 'lingflow',
       operation: 'deploy to production',
     });
@@ -86,7 +87,8 @@ describe('approve_authorization', () => {
       (createResult.content as Array<{ text: string }>)[0].text
     );
 
-    const approveResult = await approveAuthorization.handler({
+    const approveResult = await authorize.handler({
+      command: 'approve',
       authorization_id,
       decision: 'approve',
       resolved_by: 'lingflow_plus',
@@ -99,7 +101,8 @@ describe('approve_authorization', () => {
   });
 
   it('should reject a pending request', async () => {
-    const createResult = await requireAuthorization.handler({
+    const createResult = await authorize.handler({
+      command: 'require',
       caller: 'lingclaude',
       operation: 'rm -rf /tmp/test',
     });
@@ -107,7 +110,8 @@ describe('approve_authorization', () => {
       (createResult.content as Array<{ text: string }>)[0].text
     );
 
-    const rejectResult = await approveAuthorization.handler({
+    const rejectResult = await authorize.handler({
+      command: 'approve',
       authorization_id,
       decision: 'reject',
       resolved_by: 'user',
@@ -121,7 +125,8 @@ describe('approve_authorization', () => {
   });
 
   it('should reject unknown resolver', async () => {
-    const createResult = await requireAuthorization.handler({
+    const createResult = await authorize.handler({
+      command: 'require',
       caller: 'lingflow',
       operation: 'test op',
     });
@@ -129,7 +134,8 @@ describe('approve_authorization', () => {
       (createResult.content as Array<{ text: string }>)[0].text
     );
 
-    const result = await approveAuthorization.handler({
+    const result = await authorize.handler({
+      command: 'approve',
       authorization_id,
       decision: 'approve',
       resolved_by: 'hacker',
@@ -138,7 +144,8 @@ describe('approve_authorization', () => {
   });
 
   it('should reject already resolved request', async () => {
-    const createResult = await requireAuthorization.handler({
+    const createResult = await authorize.handler({
+      command: 'require',
       caller: 'lingflow',
       operation: 'test op',
     });
@@ -146,13 +153,15 @@ describe('approve_authorization', () => {
       (createResult.content as Array<{ text: string }>)[0].text
     );
 
-    await approveAuthorization.handler({
+    await authorize.handler({
+      command: 'approve',
       authorization_id,
       decision: 'approve',
       resolved_by: 'lingflow_plus',
     });
 
-    const result = await approveAuthorization.handler({
+    const result = await authorize.handler({
+      command: 'approve',
       authorization_id,
       decision: 'reject',
       resolved_by: 'lingflow_plus',
@@ -164,7 +173,8 @@ describe('approve_authorization', () => {
   });
 
   it('should reject non-existent request', async () => {
-    const result = await approveAuthorization.handler({
+    const result = await authorize.handler({
+      command: 'approve',
       authorization_id: 'nonexistent-id',
       decision: 'approve',
       resolved_by: 'lingflow_plus',
@@ -173,18 +183,20 @@ describe('approve_authorization', () => {
   });
 });
 
-describe('list_authorizations', () => {
+describe('authorize list', () => {
   it('should list all requests', async () => {
-    await requireAuthorization.handler({
+    await authorize.handler({
+      command: 'require',
       caller: 'lingflow',
       operation: 'op1',
     });
-    await requireAuthorization.handler({
+    await authorize.handler({
+      command: 'require',
       caller: 'lingxi',
       operation: 'op2',
     });
 
-    const result = await listAuthorizations.handler({});
+    const result = await authorize.handler({ command: 'list' });
     const body = JSON.parse(
       (result.content as Array<{ text: string }>)[0].text
     );
@@ -192,16 +204,21 @@ describe('list_authorizations', () => {
   });
 
   it('should filter by caller', async () => {
-    await requireAuthorization.handler({
+    await authorize.handler({
+      command: 'require',
       caller: 'lingflow',
       operation: 'op1',
     });
-    await requireAuthorization.handler({
+    await authorize.handler({
+      command: 'require',
       caller: 'lingxi',
       operation: 'op2',
     });
 
-    const result = await listAuthorizations.handler({ caller: 'lingflow' });
+    const result = await authorize.handler({
+      command: 'list',
+      caller: 'lingflow',
+    });
     const body = JSON.parse(
       (result.content as Array<{ text: string }>)[0].text
     );
@@ -210,20 +227,25 @@ describe('list_authorizations', () => {
   });
 
   it('should filter by status', async () => {
-    const createResult = await requireAuthorization.handler({
+    const createResult = await authorize.handler({
+      command: 'require',
       caller: 'lingflow',
       operation: 'op1',
     });
     const { authorization_id } = JSON.parse(
       (createResult.content as Array<{ text: string }>)[0].text
     );
-    await approveAuthorization.handler({
+    await authorize.handler({
+      command: 'approve',
       authorization_id,
       decision: 'approve',
       resolved_by: 'lingflow_plus',
     });
 
-    const result = await listAuthorizations.handler({ status: 'pending' });
+    const result = await authorize.handler({
+      command: 'list',
+      status: 'pending',
+    });
     const body = JSON.parse(
       (result.content as Array<{ text: string }>)[0].text
     );

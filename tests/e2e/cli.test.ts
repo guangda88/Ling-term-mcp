@@ -133,12 +133,12 @@ describe('E2E: MCP HTTP Proxy', () => {
       `Should include execute_command, got: ${toolNames.join(', ')}`
     );
     assert.ok(
-      toolNames.includes('create_session'),
-      `Should include create_session, got: ${toolNames.join(', ')}`
+      toolNames.includes('session'),
+      `Should include session, got: ${toolNames.join(', ')}`
     );
     assert.ok(
-      toolNames.includes('destroy_session'),
-      `Should include destroy_session, got: ${toolNames.join(', ')}`
+      toolNames.includes('audit_report'),
+      `Should include audit_report, got: ${toolNames.join(', ')}`
     );
   });
 

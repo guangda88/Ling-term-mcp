@@ -1,0 +1,73 @@
+{
+  "$comment": "Copy to backends.json and fill in real values. backends.json is .gitignored (contains API keys)",
+  "backends": {
+    "lingclaude": {
+      "command": "python3",
+      "args": ["lingclaude/mcp/server.py"],
+      "cwd": "/home/ai/lingclaude",
+      "description": "AI编程助手（代码读写/审计/git操作）",
+      "env": {}
+    },
+    "lingcreate": {
+      "command": "python3",
+      "args": ["-m", "lingcreate_mcp.server"],
+      "cwd": "/home/ai/lingcreate",
+      "description": "多模态生成（图片/视频/3D）",
+      "env": {}
+    },
+    "lingzhi": {
+      "command": "python3",
+      "args": ["-m", "mcp_servers.zhineng_server"],
+      "cwd": "/home/ai/lingzhi",
+      "description": "知识管理系统",
+      "env": {
+        "DATABASE_URL": "postgresql://user:password@localhost:5436/dbname"
+      }
+    },
+    "lingresearch": {
+      "command": "python3",
+      "args": ["mcp_server.py"],
+      "cwd": "/home/ai/lingresearch",
+      "description": "AI自主科研框架",
+      "env": {}
+    },
+    "lingminopt": {
+      "command": "python3",
+      "args": ["-m", "lingminopt.mcp_server"],
+      "cwd": "/home/ai/lingminopt",
+      "description": "极简自优化框架",
+      "env": {}
+    },
+    "lingyang": {
+      "command": "python3",
+      "args": ["src/mcp_server.py"],
+      "cwd": "/home/ai/lingyang",
+      "description": "对外联络宣传",
+      "env": {}
+    },
+    "lingtongask": {
+      "command": "python3",
+      "args": ["mcp_server/server.py"],
+      "cwd": "/home/ai/lingtongask",
+      "description": "智能气功播客",
+      "env": {}
+    },
+    "lingflow": {
+      "command": "python3",
+      "args": ["lingflow/intelligence/mcp_server.py"],
+      "cwd": "/home/ai/lingflow",
+      "description": "AI生态平台（GitHub Issue分析）",
+      "env": {}
+    },
+    "zai-mcp": {
+      "command": "npx",
+      "args": ["-y", "@z_ai/mcp-server"],
+      "cwd": "/tmp",
+      "description": "智谱视觉分析（图像/视频/OCR/UI/图表理解）",
+      "env": {
+        "Z_AI_MODE": "ZHIPU",
+        "Z_AI_API_KEY": "YOUR_API_KEY_HERE"
+      }
+    }
+  }
+}

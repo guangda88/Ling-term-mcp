@@ -169,7 +169,7 @@ export const executeCommand = {
         authorization_id: {
           type: 'string',
           description:
-            'Authorization ID for red-zone commands (ssh, curl, npm, etc.). Obtain via require_authorization tool.',
+            'Authorization ID for red-zone commands (ssh, curl, npm, etc.). Obtain via authorize tool (command=require).',
         },
       },
       required: ['command', 'caller'],
@@ -313,7 +313,7 @@ export const executeCommand = {
           shell,
         });
         throw new Error(
-          `Red-zone command '${commandForValidation.split(' ')[0]}' requires authorization. Use require_authorization tool first.`
+          `Red-zone command '${commandForValidation.split(' ')[0]}' requires authorization. Use authorize tool (command=require) first.`
         );
       }
       const auth = checkRedZoneAuthorization(authorization_id, command);

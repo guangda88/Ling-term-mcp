@@ -36,295 +36,283 @@ function cleanup(): void {
   }
 }
 
-export const requireAuthorization = {
+function json(data: unknown) {
+  return JSON.stringify(data, null, 2);
+}
+
+export const authorize = {
   definition: {
-    name: 'require_authorization',
+    name: 'authorize',
     description:
-      'Request user authorization for a red-zone operation (e.g. modifying shared code, publishing, deleting). Returns a pending request ID. Must be approved via approve_authorization before proceeding.',
+      'Manage red-zone authorization requests. Commands: require (request approval), approve (approve/reject), list (list requests).',
     inputSchema: {
       type: 'object',
       properties: {
+        command: {
+          type: 'string',
+          enum: ['require', 'approve', 'list'],
+          description: 'Authorization operation to perform',
+        },
         caller: {
           type: 'string',
           description:
-            "Identity of the requesting member (e.g. 'lingflow', 'lingclaude')",
+            "Caller identity (required for 'require', used for 'list' filter)",
         },
         operation: {
           type: 'string',
-          description: 'Description of the operation requiring authorization',
+          description: "Operation description (required for 'require')",
         },
-        command: {
+        command_bind: {
           type: 'string',
-          description:
-            'Optional command string to bind this authorization to. If provided, only this exact command can use the authorization.',
+          description: 'Optional command string to bind this authorization to',
         },
         details: {
           type: 'object',
           description: 'Additional details about the operation',
           additionalProperties: true,
         },
-      },
-      required: ['caller', 'operation'],
-    },
-  },
-
-  async handler(args: unknown) {
-    const {
-      caller,
-      operation,
-      command,
-      details = {},
-    } = args as {
-      caller: string;
-      operation: string;
-      command?: string;
-      details?: Record<string, unknown>;
-    };
-
-    if (!caller || typeof caller !== 'string') {
-      return {
-        content: [{ type: 'text' as const, text: 'Error: caller is required' }],
-        isError: true,
-      };
-    }
-
-    if (!isKnownMember(caller)) {
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Error: '${caller}' is not a registered 灵族 member`,
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    if (!operation || typeof operation !== 'string') {
-      return {
-        content: [
-          { type: 'text' as const, text: 'Error: operation is required' },
-        ],
-        isError: true,
-      };
-    }
-
-    cleanup();
-
-    const now = new Date();
-    const id = randomUUID();
-    const req: AuthorizationRequest = {
-      id,
-      caller,
-      operation,
-      command,
-      details,
-      created_at: now.toISOString(),
-      expires_at: new Date(now.getTime() + AUTH_TTL_MS).toISOString(),
-      status: 'pending',
-    };
-
-    requests.set(id, req);
-
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: JSON.stringify(
-            {
-              authorization_id: id,
-              status: 'pending',
-              operation,
-              caller,
-              expires_at: req.expires_at,
-              message: `Authorization required for: ${operation}. Use approve_authorization with this ID to proceed.`,
-            },
-            null,
-            2
-          ),
-        },
-      ],
-    };
-  },
-};
-
-export const approveAuthorization = {
-  definition: {
-    name: 'approve_authorization',
-    description:
-      'Approve or reject a pending authorization request. Only user-authorized callers (lingflow_plus, or the original requester for cancellation) can resolve.',
-    inputSchema: {
-      type: 'object',
-      properties: {
         authorization_id: {
           type: 'string',
-          description: 'The authorization request ID to resolve',
+          description: "Authorization ID (required for 'approve')",
         },
         decision: {
           type: 'string',
           enum: ['approve', 'reject'],
-          description: 'Whether to approve or reject the request',
+          description: "Decision (required for 'approve')",
         },
         resolved_by: {
           type: 'string',
-          description:
-            "Identity of the resolver (e.g. 'lingflow_plus', 'user')",
+          description: "Identity of the resolver (required for 'approve')",
         },
         reason: {
           type: 'string',
           description: 'Optional reason for the decision',
         },
-      },
-      required: ['authorization_id', 'decision', 'resolved_by'],
-    },
-  },
-
-  async handler(args: unknown) {
-    const { authorization_id, decision, resolved_by, reason } = args as {
-      authorization_id: string;
-      decision: 'approve' | 'reject';
-      resolved_by: string;
-      reason?: string;
-    };
-
-    if (!authorization_id || typeof authorization_id !== 'string') {
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text: 'Error: authorization_id is required',
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    const authorized = resolved_by === 'user' || isKnownMember(resolved_by);
-    if (!authorized) {
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Error: '${resolved_by}' is not authorized to approve requests`,
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    const req = requests.get(authorization_id);
-    if (!req) {
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Error: authorization request '${authorization_id}' not found`,
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    if (req.status !== 'pending') {
-      return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Error: request is already ${req.status} (resolved by ${req.resolved_by || 'system'} at ${req.resolved_at || 'unknown'})`,
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    const now = new Date().toISOString();
-    req.status = decision === 'approve' ? 'approved' : 'rejected';
-    req.resolved_by = resolved_by;
-    req.resolved_at = now;
-
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: JSON.stringify(
-            {
-              authorization_id,
-              status: req.status,
-              operation: req.operation,
-              caller: req.caller,
-              resolved_by,
-              resolved_at: now,
-              reason: reason || undefined,
-            },
-            null,
-            2
-          ),
-        },
-      ],
-    };
-  },
-};
-
-export const listAuthorizations = {
-  definition: {
-    name: 'list_authorizations',
-    description:
-      'List authorization requests, optionally filtered by status or caller.',
-    inputSchema: {
-      type: 'object',
-      properties: {
         status: {
           type: 'string',
           enum: ['pending', 'approved', 'rejected', 'expired'],
-          description: 'Filter by status',
-        },
-        caller: {
-          type: 'string',
-          description: 'Filter by caller identity',
+          description: "Filter by status (optional, for 'list')",
         },
       },
+      required: ['command'],
     },
   },
 
   async handler(args: unknown) {
-    const { status, caller } = args as {
-      status?: string;
+    const {
+      command,
+      caller,
+      operation,
+      command_bind,
+      details = {},
+      authorization_id,
+      decision,
+      resolved_by,
+      reason,
+      status,
+    } = args as {
+      command: string;
       caller?: string;
+      operation?: string;
+      command_bind?: string;
+      details?: Record<string, unknown>;
+      authorization_id?: string;
+      decision?: 'approve' | 'reject';
+      resolved_by?: string;
+      reason?: string;
+      status?: string;
     };
 
-    cleanup();
+    switch (command) {
+      case 'require': {
+        if (!caller || typeof caller !== 'string') {
+          return {
+            content: [
+              { type: 'text' as const, text: 'Error: caller is required' },
+            ],
+            isError: true,
+          };
+        }
+        if (!isKnownMember(caller)) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `Error: '${caller}' is not a registered 灵族 member`,
+              },
+            ],
+            isError: true,
+          };
+        }
+        if (!operation || typeof operation !== 'string') {
+          return {
+            content: [
+              { type: 'text' as const, text: 'Error: operation is required' },
+            ],
+            isError: true,
+          };
+        }
 
-    let results = [...requests.values()];
-    if (status) results = results.filter((r) => r.status === status);
-    if (caller) results = results.filter((r) => r.caller === caller);
-    results.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+        cleanup();
 
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: JSON.stringify(
+        const now = new Date();
+        const id = randomUUID();
+        const req: AuthorizationRequest = {
+          id,
+          caller,
+          operation,
+          command: command_bind,
+          details,
+          created_at: now.toISOString(),
+          expires_at: new Date(now.getTime() + AUTH_TTL_MS).toISOString(),
+          status: 'pending',
+        };
+
+        requests.set(id, req);
+
+        return {
+          content: [
             {
-              total: results.length,
-              requests: results.map((r) => ({
-                id: r.id,
-                caller: r.caller,
-                operation: r.operation,
-                status: r.status,
-                created_at: r.created_at,
-                resolved_by: r.resolved_by,
-                resolved_at: r.resolved_at,
-              })),
+              type: 'text' as const,
+              text: json({
+                authorization_id: id,
+                status: 'pending',
+                operation,
+                caller,
+                expires_at: req.expires_at,
+                message: `Authorization required for: ${operation}. Use authorize approve with this ID to proceed.`,
+              }),
             },
-            null,
-            2
-          ),
-        },
-      ],
-    };
+          ],
+        };
+      }
+
+      case 'approve': {
+        if (!authorization_id || typeof authorization_id !== 'string') {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: 'Error: authorization_id is required',
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (!resolved_by || typeof resolved_by !== 'string') {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: 'Error: resolved_by is required',
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const authorized = resolved_by === 'user' || isKnownMember(resolved_by);
+        if (!authorized) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `Error: '${resolved_by}' is not authorized to approve requests`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const req = requests.get(authorization_id);
+        if (!req) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `Error: authorization request '${authorization_id}' not found`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (req.status !== 'pending') {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `Error: request is already ${req.status} (resolved by ${req.resolved_by || 'system'} at ${req.resolved_at || 'unknown'})`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const resolvedNow = new Date().toISOString();
+        req.status = decision === 'approve' ? 'approved' : 'rejected';
+        req.resolved_by = resolved_by;
+        req.resolved_at = resolvedNow;
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: json({
+                authorization_id,
+                status: req.status,
+                operation: req.operation,
+                caller: req.caller,
+                resolved_by,
+                resolved_at: resolvedNow,
+                reason: reason || undefined,
+              }),
+            },
+          ],
+        };
+      }
+
+      case 'list': {
+        cleanup();
+
+        let results = [...requests.values()];
+        if (status) results = results.filter((r) => r.status === status);
+        if (caller) results = results.filter((r) => r.caller === caller);
+        results.sort(
+          (a, b) => +new Date(b.created_at) - +new Date(a.created_at)
+        );
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: json({
+                total: results.length,
+                requests: results.map((r) => ({
+                  id: r.id,
+                  caller: r.caller,
+                  operation: r.operation,
+                  status: r.status,
+                  created_at: r.created_at,
+                  resolved_by: r.resolved_by,
+                  resolved_at: r.resolved_at,
+                })),
+              }),
+            },
+          ],
+        };
+      }
+
+      default:
+        throw new Error(
+          `Unknown authorize command: '${command}'. Valid: require, approve, list`
+        );
+    }
   },
 };
 
+// Exported for use by execute_command (same-process access)
 export function getAuthorizationStatus(
   id: string
 ): AuthorizationRequest | undefined {

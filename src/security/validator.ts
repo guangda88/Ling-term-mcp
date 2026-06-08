@@ -483,3 +483,46 @@ export class SecurityValidator {
 }
 
 export const securityValidator = new SecurityValidator();
+
+// === Runtime list mutations (governance dual-sign controlled) ===
+
+/**
+ * Apply a list change at runtime. Called by list_governance after dual-sign approval.
+ * Directly mutates the module-level arrays, which the singleton validator references.
+ */
+export function applyListChange(
+  listType: 'whitelist' | 'blacklist' | 'red_zone',
+  action: 'add' | 'remove',
+  entries: string[]
+): void {
+  const targetArray =
+    listType === 'whitelist'
+      ? DEFAULT_WHITELIST
+      : listType === 'blacklist'
+        ? DEFAULT_BLACKLIST
+        : RED_ZONE_COMMANDS;
+
+  for (const entry of entries) {
+    const idx = targetArray.indexOf(entry);
+    if (action === 'add' && idx === -1) {
+      targetArray.push(entry);
+    } else if (action === 'remove' && idx !== -1) {
+      targetArray.splice(idx, 1);
+    }
+  }
+}
+
+/**
+ * Get the current effective lists (defaults + runtime overrides).
+ */
+export function getEffectiveLists(): {
+  whitelist: string[];
+  blacklist: string[];
+  red_zone: string[];
+} {
+  return {
+    whitelist: [...DEFAULT_WHITELIST],
+    blacklist: [...DEFAULT_BLACKLIST],
+    red_zone: [...RED_ZONE_COMMANDS],
+  };
+}

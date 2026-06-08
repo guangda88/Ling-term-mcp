@@ -5,6 +5,51 @@ All notable changes to Ling-term-mcp (灵犀) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-06-08
+
+### Added
+
+#### Tool Consolidation (50-Tool Limit Fix)
+
+- **`session`** — consolidates `list_sessions`, `create_session`, `destroy_session`, `sync_terminal` into one tool with `command` dispatch
+- **`audit_report`** — new `kill_storm_alerts` field: scans `~/.lingshell/run/*.state.json` for restart_count anomalies (≥3 WARNING, ≥8 CRITICAL)
+- **`audit_report`** — new `rejections` field (total, by_category, by_caller, recent) from `~/.ling-term-mcp/rejections.jsonl`
+- **`authorize`** — consolidates `require_authorization`, `approve_authorization`, `list_authorization` into one tool
+- **`governance`** — safe-bash dual-sign: propose/review/list command list changes (proposer cannot self-review)
+- **`proxy`** — MCP thin proxy: call/list/status for 9 proxied backends (~126 hidden tools)
+
+#### Rejection Logging
+
+- **`src/audit/rejection_log.ts`** — JSONL persistence for security-rejected commands with auto-rotation (max 10MB)
+- **14 rejection points** fully covered: execute_command (5+2 red-zone), gateway/queue (4), gateway/coordinator (3)
+
+#### Kill-Storm Detection
+
+- **`scanLingshellKillStorm()`** — detects lingshell restart_count anomaly patterns
+- Closes audit blind spot from 2026-06-07 lingshell mass-kill incident
+
+### Changed
+
+- **Tool count**: 15 internal tools → 6 exposed to Crush (command dispatch pattern)
+- **MCP tool surface**: 23 total (灵犀 6 + 灵信 12 + external 5), under 50-tool limit
+- **`caller` parameter**: now required for `execute_command` (was optional)
+- **Red-zone enforcement**: `checkRedZoneAuthorization` integrated into execute_command security chain
+
+### Fixed
+
+- **E2E test**: `tools/list` assertion updated for consolidated tool names
+- **Lint**: kill_storm.test.ts 8 errors → 0 (removed `require()` calls, unused variable)
+- **backends.json**: moved to `.gitignore`, created `backends.example.json` (was leaking API key)
+
+### Test Results
+
+- **263 tests, 17 suites, all passing**
+- E2E: 5/5 passing
+- TypeScript strict mode clean
+- ESLint: 0 errors (58 warnings, all pre-existing `no-explicit-any`)
+
+---
+
 ## [1.2.0] - 2026-06-05
 
 ### Added

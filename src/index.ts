@@ -10,23 +10,18 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { executeCommand } from './tools/execute_command.js';
-import { syncTerminal } from './tools/sync_terminal.js';
-import { listSessions } from './tools/list_sessions.js';
-import { createSession } from './tools/create_session.js';
-import { destroySession } from './tools/destroy_session.js';
+import { session } from './tools/session.js';
 import { auditReport } from './tools/audit_report.js';
-import {
-  requireAuthorization,
-  approveAuthorization,
-  listAuthorizations,
-} from './tools/authorize.js';
+import { authorize } from './tools/authorize.js';
+import { governance } from './tools/list_governance.js';
+import { proxy } from './tools/proxy.js';
 
 /**
  * MCP Server configuration
  */
 const SERVER_CONFIG = {
   name: 'ling-term-mcp',
-  version: '1.0.0',
+  version: '1.3.0',
   description: 'AI terminal operations MCP server (灵犀)',
 };
 
@@ -51,14 +46,11 @@ export function createServer(): Server {
     return {
       tools: [
         executeCommand.definition,
-        syncTerminal.definition,
-        listSessions.definition,
-        createSession.definition,
-        destroySession.definition,
+        session.definition,
         auditReport.definition,
-        requireAuthorization.definition,
-        approveAuthorization.definition,
-        listAuthorizations.definition,
+        authorize.definition,
+        governance.definition,
+        proxy.definition,
       ],
     };
   });
@@ -71,22 +63,16 @@ export function createServer(): Server {
       switch (name) {
         case 'execute_command':
           return await executeCommand.handler(args);
-        case 'sync_terminal':
-          return await syncTerminal.handler(args);
-        case 'list_sessions':
-          return await listSessions.handler();
-        case 'create_session':
-          return await createSession.handler(args);
-        case 'destroy_session':
-          return await destroySession.handler(args);
+        case 'session':
+          return await session.handler(args);
         case 'audit_report':
           return await auditReport.handler(args);
-        case 'require_authorization':
-          return await requireAuthorization.handler(args);
-        case 'approve_authorization':
-          return await approveAuthorization.handler(args);
-        case 'list_authorizations':
-          return await listAuthorizations.handler(args);
+        case 'authorize':
+          return await authorize.handler(args);
+        case 'governance':
+          return await governance.handler(args);
+        case 'proxy':
+          return await proxy.handler(args);
         default:
           throw new Error(`Unknown tool: ${name}`);
       }

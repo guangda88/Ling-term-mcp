@@ -44,7 +44,7 @@ npm link
 ling-term-mcp --version
 ```
 
-Expected output: `1.2.0`
+Expected output: `1.3.0`
 
 ### 2. Start the Server
 
@@ -120,13 +120,13 @@ The AI assistant will use the `execute_command` tool to run `ls -la`.
 Create a new session named "my-project"
 ```
 
-The AI assistant will use the `create_session` tool.
+The AI assistant will use the `session` tool with `command: "create"`.
 
 ```
 List all active sessions
 ```
 
-The AI assistant will use the `list_sessions` tool.
+The AI assistant will use the `session` tool with `command: "list"`.
 
 ### Sync Terminal State
 
@@ -134,7 +134,7 @@ The AI assistant will use the `list_sessions` tool.
 What's my current working directory and environment?
 ```
 
-The AI assistant will use the `sync_terminal` tool.
+The AI assistant will use the `session` tool with `command: "sync"`.
 
 ---
 
@@ -207,7 +207,7 @@ npm link
 
 **Solution**:
 
-1. Use `list_sessions` to see available sessions
+1. Use `session` with `command: "list"` to see available sessions
 2. Create a new session if needed
 
 ### Permission denied

@@ -5,6 +5,7 @@
 
 import { getSessions } from '../sessions/store.js';
 import { isKnownMember, getMember } from '../security/identity.js';
+import { readdirSync, readFileSync } from 'node:fs';
 import type { DecisionRecord } from '../protocol/types.js';
 import { performanceMonitor } from '../monitoring/performance.js';
 import {
@@ -29,6 +30,13 @@ export interface CallerStats {
   last_active: string;
 }
 
+export interface KillStormAlert {
+  member: string;
+  restart_count: number;
+  severity: 'WARNING' | 'CRITICAL';
+  message: string;
+}
+
 export interface AuditSummary {
   generated_at: string;
   period: { from: string; to: string };
@@ -45,6 +53,7 @@ export interface AuditSummary {
     by_caller: Record<string, number>;
     recent: RejectionRecord[];
   };
+  kill_storm_alerts: KillStormAlert[];
 }
 
 async function collectDecisions(): Promise<DecisionRecord[]> {
@@ -203,6 +212,36 @@ async function buildViolations(): Promise<{ rule: string; count: number }[]> {
     .sort((a, b) => b.count - a.count);
 }
 
+export function scanLingshellKillStorm(): KillStormAlert[] {
+  const alerts: KillStormAlert[] = [];
+  const stateDir = `${process.env.HOME || ''}/.lingshell/run`;
+  try {
+    const files = readdirSync(stateDir).filter((f) =>
+      f.endsWith('.state.json')
+    );
+    for (const f of files) {
+      try {
+        const content = readFileSync(`${stateDir}/${f}`, 'utf-8');
+        const state = JSON.parse(content);
+        const rc = state.restart_count || 0;
+        if (rc >= 3) {
+          alerts.push({
+            member: state.name || f.replace('.state.json', ''),
+            restart_count: rc,
+            severity: rc >= 8 ? 'CRITICAL' : 'WARNING',
+            message: `${state.name || 'unknown'} restart_count=${rc}, 疑似kill风暴`,
+          });
+        }
+      } catch {
+        // skip unreadable file
+      }
+    }
+  } catch {
+    // lingshell not installed or no state dir
+  }
+  return alerts.sort((a, b) => b.restart_count - a.restart_count);
+}
+
 function buildRejections(): {
   total: number;
   by_category: Record<string, number>;
@@ -328,6 +367,7 @@ export const auditReport = {
       top_commands: buildTopCommands(histories),
       violations: await buildViolations(),
       rejections: buildRejections(),
+      kill_storm_alerts: scanLingshellKillStorm(),
     };
 
     if (format === 'detailed') {

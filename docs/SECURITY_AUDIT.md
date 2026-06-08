@@ -104,5 +104,6 @@ Scanned all 13 MCP servers across the 灵族 ecosystem by reading source code of
 - **After M3-M5**: 145 passed, 12 failed (all from `validator.ts` whitelist refactor — blocked on other owner)
 - **After M5.1** (commit `a6512c6`): **151 passed, 0 failed** — all green after test alignment with whitelist refactor
 - **After rejection logging** (commit `10e14a3`, 2026-06-05): **205 passed, 0 failed** — 16 suites, includes rejection_log tests + identity refactor
+- **After kill_storm + session/proxy/governance** (2026-06-08): **263 passed, 0 failed** — 17 suites, includes kill_storm alerts + MCP proxy + safe-bash dual-sign
 - **Test coverage (execute_command.ts)**: 91.3% statements, 76.25% branches, 92.72% lines
 - **Type check**: Clean (`npx tsc --noEmit`)
