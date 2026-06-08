@@ -42,6 +42,10 @@
 - 上一会话已参与lingshell事故全链路表态（紧急停止开关/审计盲区/告警去重）
 - 中断监控显示灵犀 idle=16m msgs=29，状态正常
 
+### 待优化（P2，非阻塞）
+- HTTP proxy timeout: 1206次/天(300s默认)，建议降至60s减少资源浪费
+- 灵通+daemon `_ensure_lingterm_mcp()` 注入stdio配置，全局已用http配置（已通知灵通+）
+
 ### 阻塞项
 - 无
 
