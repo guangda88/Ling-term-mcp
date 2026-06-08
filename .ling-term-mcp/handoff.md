@@ -120,7 +120,8 @@
 - 单元+集成: 199/199 ✅ | E2E: 5/5 ✅ | TypeScript: clean ✅ | Build: ✅
 
 ## 会话记录
-- 2026-06-08: 启动协议+SDT Round15(4/4: 001备份/002审计0cmd+4rej+kill_storm已止血/003零漂移/004 263pass 17suites), kill_storm.test.ts lint修复(8err→0), E2E tools/list断言修复(create_session→session整合), 文档更新(README 205→263tests/16→17suites, SECURITY_AUDIT新增kill_storm条目), 263/263 unit+E2E 5/5+lint 0err+tsc clean, 无阻塞项
+- 2026-06-08(2): SDT Round16(4/4: 001备份/002 0cmd+12rej+kill_storm已止血/003零漂移/004 263pass), proxy timeout修复尝试60s→18x恶化→回退300s(保留maxConnections50), 回复灵通事故报告(SDTH形态B+bash防护)+灵克Proxy审计(SEC-01/SEC-02+DUP-01), P2 proxy timeout观察已记录, 无阻塞项
+- 2026-06-08(1): 启动协议+SDT Round15(4/4), v1.3.0发布(6工具整合+kill_storm+rejection logging), thinking边界修复(CRUSH.md+AGENTS.md), 文档全量更新(API/USER_GUIDE/README/SECURITY_AUDIT/DETAILED_GUIDE/CHANGELOG), kill_storm.test.ts lint修复+E2E断言修复+旧工具名修正, 263/263+E2E 5/5+lint 0err+tsc clean, 回复灵克Thinking膨胀+灵通+daemon stdio/http不一致+约束文件变更报备, v1.3.0通知+thinking讨论+约束告警回复, commit dacf049+35b97d5已推送, 无阻塞项
 - 2026-06-07(5): 唤醒协议, 红点修复(9529 systemd+Restart=always+双熔断测试), backends.json安全修复, kill_storm_alerts方案A实施(代码+8测试=257/257), SDT Round14(4/4)+SDT-005 Round4(171tool/6mismatch), 回复灵创/灵克/灵通+事故3线程+灵克紧急停止方案, 通知灵信同步注册表, 无阻塞项
 - 2026-06-07(3): 唤醒协议, MCP Proxy薄代理双向确认(灵通+灵网回复), safe-bash双签闭环确认, 灵扬7篇Dev.to文章+3封邮件审核approve, 回复灵克handover读写铁律+操作错误恢复铁律, 回复灵通+用户授权自主SDT通知, 回复灵通问道handover失真教训, P0 regex_searcher SQL注入闭环ack, SDT Round 13(4/4 done), 无阻塞项
 - 2026-06-07(3) SDT详情: 001 handoff备份✅/002 1sess 0cmd 0viol 4rejections✅/003 身份零漂移✅/004 249/249 15suites✅
