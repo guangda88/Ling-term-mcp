@@ -37,6 +37,7 @@ export interface HTTPProxyOptions {
   authToken?: string;
   rateLimit?: RateLimitConfig;
   requestTimeoutMs?: number;
+  maxConnections?: number;
 }
 
 interface ActiveConnection {
@@ -56,8 +57,9 @@ export async function startHTTPProxy(
     hostEnv = 'MCP_HTTP_HOST',
     authToken,
     rateLimit,
-    requestTimeoutMs = 300_000,
+    requestTimeoutMs = 60_000,
   } = options;
+  const maxConnections = options.maxConnections ?? 50;
   const port = parseInt(process.env[portEnv] || '', 10) || options.port || 9529;
   const host = process.env[hostEnv] || options.host || '127.0.0.1';
 
@@ -189,6 +191,24 @@ export async function startHTTPProxy(
       });
       const server = createServer();
       let finished = false;
+
+      if (activeConnections.size >= maxConnections) {
+        res.writeHead(503, {
+          'Content-Type': 'application/json',
+          Connection: 'close',
+        });
+        res.end(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            error: {
+              code: -32029,
+              message: `Too many connections (${activeConnections.size}/${maxConnections})`,
+            },
+            id: null,
+          })
+        );
+        return;
+      }
 
       const entry: ActiveConnection = {
         server,
