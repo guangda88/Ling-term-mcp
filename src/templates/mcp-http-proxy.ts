@@ -57,7 +57,7 @@ export async function startHTTPProxy(
     hostEnv = 'MCP_HTTP_HOST',
     authToken,
     rateLimit,
-    requestTimeoutMs = 60_000,
+    requestTimeoutMs = 300_000,
   } = options;
   const maxConnections = options.maxConnections ?? 50;
   const port = parseInt(process.env[portEnv] || '', 10) || options.port || 9529;
