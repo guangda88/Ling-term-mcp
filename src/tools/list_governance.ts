@@ -14,6 +14,7 @@ import {
   snapshotLists,
 } from '../security/list_governance.js';
 import { isKnownMember } from '../security/identity.js';
+import { broadcastProposal } from '../gateway/notify.js';
 
 function json(data: unknown) {
   return JSON.stringify(data, null, 2);
@@ -160,6 +161,17 @@ export const governance = {
             isError: true,
           };
         }
+
+        broadcastProposal({
+          type: 'governance_proposal',
+          proposal_id: result.proposal!.id,
+          proposer: result.proposal!.proposer,
+          list_type: result.proposal!.list_type,
+          action: result.proposal!.action,
+          entries: result.proposal!.entries,
+          reason: result.proposal!.reason,
+          expires_at: result.proposal!.expires_at,
+        });
 
         return {
           content: [

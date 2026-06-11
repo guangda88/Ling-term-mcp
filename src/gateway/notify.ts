@@ -14,6 +14,61 @@ export interface NotifyResult {
 const DEFAULT_NOTIFY_URL = 'http://127.0.0.1:8765';
 const NOTIFY_TIMEOUT = 5000;
 
+const SSE_PUSH_HOST = '127.0.0.1';
+const SSE_PUSH_PORT = 9527;
+const SSE_PUSH_TIMEOUT = 3000;
+
+interface ProposalPayload {
+  type: 'governance_proposal';
+  proposal_id: string;
+  proposer: string;
+  list_type: string;
+  action: string;
+  entries: string[];
+  reason: string;
+  expires_at: string;
+}
+
+export function broadcastProposal(
+  proposal: ProposalPayload,
+  port?: number
+): void {
+  const body = JSON.stringify({
+    event: 'governance_proposal',
+    recipient: 'all',
+    subject: 'Governance: 新提案待审批',
+    ...proposal,
+  });
+
+  const req = httpRequest(
+    {
+      hostname: SSE_PUSH_HOST,
+      port: port ?? SSE_PUSH_PORT,
+      path: '/internal/broadcast',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+      timeout: SSE_PUSH_TIMEOUT,
+    },
+    () => {
+      // fire-and-forget
+    }
+  );
+
+  req.on('error', () => {
+    // silent — SSE push server may not be running
+  });
+
+  req.on('timeout', () => {
+    req.destroy();
+  });
+
+  req.write(body);
+  req.end();
+}
+
 export function sendNotification(
   payload: NotifyPayload,
   baseUrl?: string
