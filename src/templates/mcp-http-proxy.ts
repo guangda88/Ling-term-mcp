@@ -21,6 +21,7 @@ import {
 } from 'http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { startFileGuardian, stopFileGuardian } from '../audit/file_guardian.js';
 
 export interface RateLimitConfig {
   windowMs: number;
@@ -156,7 +157,9 @@ export async function startHTTPProxy(
     if (!entry.res.writableEnded) {
       entry.res.end();
     }
-    entry.res.destroy();
+    if (!entry.res.destroyed && entry.res.writableEnded) {
+      entry.res.destroy();
+    }
     console.error(`[${name}] Connection cleaned up (${reason})`);
   }
 
@@ -252,10 +255,16 @@ export async function startHTTPProxy(
       try {
         await server.connect(transport);
         await transport.handleRequest(req, res);
+        // For SSE responses, handleRequest returns while stream is still active.
+        // Cleanup is handled by res.on('close'), not here.
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[${name}] Request error:`, message);
-        if (!finished && !res.headersSent) {
+        if (!finished) {
+          finished = true;
+          clearTimeout(entry.timer);
+        }
+        if (!res.headersSent) {
           res.writeHead(500, {
             'Content-Type': 'application/json',
             Connection: 'close',
@@ -271,13 +280,14 @@ export async function startHTTPProxy(
             })
           );
         }
-      } finally {
         if (activeConnections.has(entry)) {
-          await cleanupConnection(entry, 'request completed');
+          await cleanupConnection(entry, 'request error');
         }
       }
     }
   );
+
+  startFileGuardian();
 
   httpServer.listen(port, host, () => {
     console.error(`${name} HTTP proxy started on http://${host}:${port}`);
@@ -290,6 +300,7 @@ export async function startHTTPProxy(
     for (const entry of activeConnections) {
       await cleanupConnection(entry, 'server shutdown').catch(() => {});
     }
+    stopFileGuardian();
     httpServer.close();
     process.exit(0);
   };

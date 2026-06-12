@@ -350,6 +350,8 @@ describe('MCP HTTP Proxy Middleware', () => {
       });
 
       await capturedHandler!(req, res);
+      (res as any).emit('close');
+      await new Promise((r) => setTimeout(r, 10));
 
       expect(mockTransportClose).toHaveBeenCalled();
     });
@@ -391,6 +393,8 @@ describe('MCP HTTP Proxy Middleware', () => {
 
       await capturedHandler!(req, res);
 
+      // Timeout triggers cleanup via timer, not res.on('close')
+      await new Promise((r) => setTimeout(r, 80));
       expect((res as any).end).toHaveBeenCalled();
     });
   });

@@ -1,4 +1,8 @@
-import { authorize, _resetForTesting } from '../../src/tools/authorize';
+import {
+  authorize,
+  _resetForTesting,
+  checkRedZoneAuthorization,
+} from '../../src/tools/authorize';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
@@ -250,5 +254,108 @@ describe('authorize list', () => {
       (result.content as Array<{ text: string }>)[0].text
     );
     expect(body.total).toBe(0);
+  });
+});
+
+describe('command_bind prefix matching', () => {
+  async function createAndApprove(
+    command_bind: string,
+    caller = 'lingflow'
+  ): Promise<string> {
+    const createResult = await authorize.handler({
+      command: 'require',
+      caller,
+      operation: 'test op',
+      command_bind,
+    });
+    const { authorization_id } = JSON.parse(
+      (createResult.content as Array<{ text: string }>)[0].text
+    );
+    await authorize.handler({
+      command: 'approve',
+      authorization_id,
+      decision: 'approve',
+      resolved_by: 'lingflow_plus',
+    });
+    return authorization_id;
+  }
+
+  it('should allow exact match', async () => {
+    const id = await createAndApprove('npm install');
+    const result = checkRedZoneAuthorization(id, 'npm install');
+    expect(result.allowed).toBe(true);
+  });
+
+  it('should allow command with extra args (space prefix)', async () => {
+    const id = await createAndApprove('npm install');
+    const result = checkRedZoneAuthorization(id, 'npm install express');
+    expect(result.allowed).toBe(true);
+  });
+
+  it('should allow command with flags (space prefix)', async () => {
+    const id = await createAndApprove('npm install');
+    const result = checkRedZoneAuthorization(id, 'npm install -g typescript');
+    expect(result.allowed).toBe(true);
+  });
+
+  it('should allow hyphenated subcommand (dash prefix)', async () => {
+    const id = await createAndApprove('npm');
+    const result = checkRedZoneAuthorization(id, 'npm-run');
+    expect(result.allowed).toBe(true);
+  });
+
+  it('should reject unrelated command', async () => {
+    const id = await createAndApprove('npm install');
+    const result = checkRedZoneAuthorization(id, 'curl https://example.com');
+    expect(result.allowed).toBe(false);
+    expect(result.error).toContain('prefix match failed');
+  });
+
+  it('should reject partial word match', async () => {
+    const id = await createAndApprove('npm');
+    const result = checkRedZoneAuthorization(id, 'npmx install');
+    expect(result.allowed).toBe(false);
+  });
+
+  it('should allow any command when no command_bind', async () => {
+    const createResult = await authorize.handler({
+      command: 'require',
+      caller: 'lingflow',
+      operation: 'test op',
+    });
+    const { authorization_id } = JSON.parse(
+      (createResult.content as Array<{ text: string }>)[0].text
+    );
+    await authorize.handler({
+      command: 'approve',
+      authorization_id,
+      decision: 'approve',
+      resolved_by: 'lingflow_plus',
+    });
+    const result = checkRedZoneAuthorization(
+      authorization_id,
+      'any-command-here'
+    );
+    expect(result.allowed).toBe(true);
+  });
+
+  it('should store command_bind in request', async () => {
+    const createResult = await authorize.handler({
+      command: 'require',
+      caller: 'lingflow',
+      operation: 'test op',
+      command_bind: 'npm install',
+    });
+    const { authorization_id } = JSON.parse(
+      (createResult.content as Array<{ text: string }>)[0].text
+    );
+    const listResult = await authorize.handler({
+      command: 'list',
+      caller: 'lingflow',
+    });
+    const body = JSON.parse(
+      (listResult.content as Array<{ text: string }>)[0].text
+    );
+    expect(body.requests[0].id).toBe(authorization_id);
   });
 });

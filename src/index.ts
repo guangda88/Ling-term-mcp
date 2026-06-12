@@ -15,6 +15,7 @@ import { auditReport } from './tools/audit_report.js';
 import { authorize } from './tools/authorize.js';
 import { governance } from './tools/list_governance.js';
 import { proxy } from './tools/proxy.js';
+import { startFileGuardian } from './audit/file_guardian.js';
 
 /**
  * MCP Server configuration
@@ -101,5 +102,6 @@ export async function startMCPServer(): Promise<void> {
   const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  startFileGuardian();
   console.error(`${SERVER_CONFIG.name} (灵犀) started successfully`);
 }

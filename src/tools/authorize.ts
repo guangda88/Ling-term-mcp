@@ -225,6 +225,7 @@ export const authorize = {
           };
         }
 
+        // Self-approval guard: requester cannot approve their own request
         const req = requests.get(authorization_id);
         if (!req) {
           return {
@@ -244,6 +245,18 @@ export const authorize = {
               {
                 type: 'text' as const,
                 text: `Error: request is already ${req.status} (resolved by ${req.resolved_by || 'system'} at ${req.resolved_at || 'unknown'})`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (resolved_by !== 'user' && req.caller === resolved_by) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `Error: self-approval denied — '${resolved_by}' cannot approve their own request (requester is also '${req.caller}')`,
               },
             ],
             isError: true,
@@ -349,11 +362,18 @@ export function checkRedZoneAuthorization(
       error: `Authorization is ${req.status} (must be approved)`,
     };
   }
-  if (req.command && req.command !== command) {
-    return {
-      allowed: false,
-      error: `Authorization bound to '${req.command}' but used for '${command}'`,
-    };
+  if (req.command) {
+    const boundCmd = req.command;
+    if (
+      command !== boundCmd &&
+      !command.startsWith(boundCmd + ' ') &&
+      !command.startsWith(boundCmd + '-')
+    ) {
+      return {
+        allowed: false,
+        error: `Authorization bound to '${boundCmd}' but used for '${command}' (prefix match failed)`,
+      };
+    }
   }
   return { allowed: true };
 }
