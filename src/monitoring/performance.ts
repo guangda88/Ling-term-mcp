@@ -3,6 +3,8 @@
  * Tracks and analyzes terminal command performance
  */
 
+import { analyzeInfoDelta, type CommandPair } from './info_delta.js';
+
 /**
  * Performance metrics
  */
@@ -174,6 +176,25 @@ export class PerformanceMonitor {
     }
 
     this.metrics.commandExecutionTime = commandGroups;
+  }
+
+  /**
+   * Get execution pairs for R5 v7 information gain analysis.
+   * Returns the full execution history as CommandPair entries.
+   */
+  getExecutionPairs(): CommandPair[] {
+    return this.executionHistory.map((e) => ({
+      command: e.command,
+      text: e.error ?? '',
+    }));
+  }
+
+  /**
+   * Run R5 v7 info delta analysis on current execution history.
+   * Distinguishes functional iteration from cognitive degradation.
+   */
+  getInfoDeltaAnalysis() {
+    return analyzeInfoDelta(this.getExecutionPairs());
   }
 }
 
