@@ -47,12 +47,6 @@ export const syncTerminal = {
       home_directory: os.homedir(),
       platform: os.platform(),
       architecture: os.arch(),
-      system_info: {
-        PATH: process.env.PATH,
-        SHELL: process.env.SHELL,
-        LANG: process.env.LANG,
-        HOME: process.env.HOME,
-      },
       timestamp: new Date().toISOString(),
     };
 

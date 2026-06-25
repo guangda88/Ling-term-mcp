@@ -41,19 +41,25 @@ describe('execute_command', () => {
     ).rejects.toThrow();
   });
 
-  it('should reject blacklisted commands', async () => {
+  it('should require authorization for authorizable commands (rm)', async () => {
     await expect(
       executeCommand.handler({ command: 'rm', caller: 'lingxi' })
-    ).rejects.toThrow('Security validation failed');
+    ).rejects.toThrow('requires authorization');
   });
 
-  it('should reject dangerous blacklisted commands', async () => {
-    const dangerousCommands = ['sudo', 'kill', 'dd', 'shutdown'];
-    for (const cmd of dangerousCommands) {
+  it('should reject absolutely blacklisted commands', async () => {
+    const blacklistedCommands = ['sudo', 'dd', 'shutdown'];
+    for (const cmd of blacklistedCommands) {
       await expect(
         executeCommand.handler({ command: cmd, caller: 'lingxi' })
-      ).rejects.toThrow('Security validation failed');
+      ).rejects.toThrow('blacklisted');
     }
+  });
+
+  it('should require authorization for authorizable commands (kill)', async () => {
+    await expect(
+      executeCommand.handler({ command: 'kill', caller: 'lingxi' })
+    ).rejects.toThrow('requires authorization');
   });
 
   it('should allow shell commands in non-shell mode', async () => {
@@ -403,10 +409,10 @@ describe('execute_command', () => {
         });
         fail('Should have thrown');
       } catch (e: unknown) {
-        expect((e as Error).message).toContain('Security validation failed');
+        expect((e as Error).message).toContain('requires authorization');
       }
       expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[security] Command rejected')
+        expect.stringContaining('[security]')
       );
       expect(errorSpy).toHaveBeenCalledWith(
         expect.stringContaining('caller: lingxi')

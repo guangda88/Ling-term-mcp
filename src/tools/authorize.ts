@@ -12,10 +12,21 @@ interface AuthorizationRequest {
   status: 'pending' | 'approved' | 'rejected' | 'expired';
   resolved_by?: string;
   resolved_at?: string;
+  // Persistent token fields
+  persistent?: boolean;
+  max_usage?: number;
+  usage_count?: number;
+  // SEC-001: Meeting auth token fields
+  target?: 'command' | 'meeting_invite';
+  meeting_id?: string;
+  agent_id?: string;
+  scope?: string[];
 }
 
 const requests = new Map<string, AuthorizationRequest>();
 const AUTH_TTL_MS = 10 * 60 * 1000;
+const PERSISTENT_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const DEFAULT_MAX_USAGE = 100;
 const MAX_PENDING = 100;
 
 function cleanup(): void {
@@ -50,7 +61,7 @@ export const authorize = {
       properties: {
         command: {
           type: 'string',
-          enum: ['require', 'approve', 'list'],
+          enum: ['require', 'approve', 'list', 'issue', 'verify'],
           description: 'Authorization operation to perform',
         },
         caller: {
@@ -93,6 +104,28 @@ export const authorize = {
           enum: ['pending', 'approved', 'rejected', 'expired'],
           description: "Filter by status (optional, for 'list')",
         },
+        persistent: {
+          type: 'boolean',
+          description:
+            'Create a persistent token (30-day, max_usage uses). Default: false.',
+        },
+        max_usage: {
+          type: 'number',
+          description: 'Max usage count for persistent tokens. Default: 100.',
+        },
+        agent_id: {
+          type: 'string',
+          description:
+            "External agent ID (for 'issue'/'verify' meeting tokens)",
+        },
+        meeting_id: {
+          type: 'string',
+          description: "Meeting ID to bind token to (for 'issue'/'verify')",
+        },
+        auth_token: {
+          type: 'string',
+          description: "Token to verify (for 'verify')",
+        },
       },
       required: ['command'],
     },
@@ -110,6 +143,11 @@ export const authorize = {
       resolved_by,
       reason,
       status,
+      persistent = false,
+      max_usage,
+      agent_id,
+      meeting_id,
+      auth_token,
     } = args as {
       command: string;
       caller?: string;
@@ -121,6 +159,11 @@ export const authorize = {
       resolved_by?: string;
       reason?: string;
       status?: string;
+      persistent?: boolean;
+      max_usage?: number;
+      agent_id?: string;
+      meeting_id?: string;
+      auth_token?: string;
     };
 
     switch (command) {
@@ -157,6 +200,7 @@ export const authorize = {
 
         const now = new Date();
         const id = randomUUID();
+        const ttl = persistent ? PERSISTENT_TTL_MS : AUTH_TTL_MS;
         const req: AuthorizationRequest = {
           id,
           caller,
@@ -164,8 +208,11 @@ export const authorize = {
           command: command_bind,
           details,
           created_at: now.toISOString(),
-          expires_at: new Date(now.getTime() + AUTH_TTL_MS).toISOString(),
+          expires_at: new Date(now.getTime() + ttl).toISOString(),
           status: 'pending',
+          persistent: persistent || undefined,
+          max_usage: persistent ? (max_usage ?? DEFAULT_MAX_USAGE) : undefined,
+          usage_count: 0,
         };
 
         requests.set(id, req);
@@ -180,7 +227,11 @@ export const authorize = {
                 operation,
                 caller,
                 expires_at: req.expires_at,
-                message: `Authorization required for: ${operation}. Use authorize approve with this ID to proceed.`,
+                persistent: persistent || undefined,
+                max_usage: req.max_usage,
+                message: persistent
+                  ? `Persistent authorization (max ${req.max_usage} uses, 30 days) required for: ${operation}. Use authorize approve with this ID to proceed.`
+                  : `Authorization required for: ${operation}. Use authorize approve with this ID to proceed.`,
               }),
             },
           ],
@@ -317,9 +368,118 @@ export const authorize = {
         };
       }
 
+      case 'issue': {
+        if (!caller || typeof caller !== 'string') {
+          return {
+            content: [
+              { type: 'text' as const, text: 'Error: caller is required' },
+            ],
+            isError: true,
+          };
+        }
+        if (!isKnownMember(caller)) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `Error: '${caller}' is not a registered 灵族 member`,
+              },
+            ],
+            isError: true,
+          };
+        }
+        if (!agent_id || typeof agent_id !== 'string') {
+          return {
+            content: [
+              { type: 'text' as const, text: 'Error: agent_id is required' },
+            ],
+            isError: true,
+          };
+        }
+        if (!meeting_id || typeof meeting_id !== 'string') {
+          return {
+            content: [
+              { type: 'text' as const, text: 'Error: meeting_id is required' },
+            ],
+            isError: true,
+          };
+        }
+
+        cleanup();
+
+        const now = new Date();
+        const id = randomUUID();
+        const ttl = persistent ? PERSISTENT_TTL_MS : AUTH_TTL_MS;
+        const scope = ['join', 'speak'];
+        const req: AuthorizationRequest = {
+          id,
+          caller,
+          operation: `meeting token for ${agent_id} -> ${meeting_id}`,
+          details: { agent_id, meeting_id },
+          created_at: now.toISOString(),
+          expires_at: new Date(now.getTime() + ttl).toISOString(),
+          status: 'approved',
+          resolved_by: caller,
+          resolved_at: now.toISOString(),
+          persistent: persistent || undefined,
+          max_usage: persistent ? (max_usage ?? DEFAULT_MAX_USAGE) : undefined,
+          usage_count: 0,
+          target: 'meeting_invite',
+          meeting_id,
+          agent_id,
+          scope,
+        };
+
+        requests.set(id, req);
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: json({
+                auth_token: id,
+                agent_id,
+                meeting_id,
+                scope,
+                expires_at: req.expires_at,
+                persistent: persistent || undefined,
+                max_usage: req.max_usage,
+                status: 'approved',
+              }),
+            },
+          ],
+        };
+      }
+
+      case 'verify': {
+        if (!auth_token || typeof auth_token !== 'string') {
+          return {
+            content: [
+              { type: 'text' as const, text: 'Error: auth_token is required' },
+            ],
+            isError: true,
+          };
+        }
+
+        const verifyResult = verifyMeetingToken(
+          auth_token,
+          agent_id,
+          meeting_id
+        );
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: json(verifyResult),
+            },
+          ],
+        };
+      }
+
       default:
         throw new Error(
-          `Unknown authorize command: '${command}'. Valid: require, approve, list`
+          `Unknown authorize command: '${command}'. Valid: require, approve, list, issue, verify`
         );
     }
   },
@@ -341,7 +501,8 @@ export function getAuthorizationStatus(
 
 export function checkRedZoneAuthorization(
   authorizationId: string,
-  command: string
+  command: string,
+  caller?: string
 ): { allowed: boolean; error?: string } {
   const req = requests.get(authorizationId);
   if (!req) {
@@ -362,6 +523,13 @@ export function checkRedZoneAuthorization(
       error: `Authorization is ${req.status} (must be approved)`,
     };
   }
+  // BUS-01: caller must match the original requester
+  if (caller && req.caller !== caller) {
+    return {
+      allowed: false,
+      error: `Authorization bound to caller '${req.caller}' but used by '${caller}' (caller mismatch)`,
+    };
+  }
   if (req.command) {
     const boundCmd = req.command;
     if (
@@ -375,7 +543,86 @@ export function checkRedZoneAuthorization(
       };
     }
   }
+
+  // Persistent token: check usage limit, increment without consuming
+  if (req.persistent) {
+    if (req.usage_count !== undefined && req.max_usage !== undefined) {
+      if (req.usage_count >= req.max_usage) {
+        req.status = 'expired';
+        return {
+          allowed: false,
+          error: `Persistent token exhausted (${req.usage_count}/${req.max_usage} uses)`,
+        };
+      }
+      req.usage_count++;
+    }
+    return { allowed: true };
+  }
+
+  // Single-use token: consume after successful check
+  req.status = 'expired';
   return { allowed: true };
+}
+
+export function verifyMeetingToken(
+  token: string,
+  agentId?: string,
+  meetingId?: string
+): {
+  valid: boolean;
+  scope?: string[];
+  agent_id?: string;
+  meeting_id?: string;
+  reason?: string;
+} {
+  const req = requests.get(token);
+  if (!req) {
+    return { valid: false, reason: 'token not found' };
+  }
+  if (req.target !== 'meeting_invite') {
+    return { valid: false, reason: 'token is not a meeting token' };
+  }
+  // Check expiry first (may transition approved → expired)
+  const now = Date.now();
+  if (now > new Date(req.expires_at).getTime()) {
+    req.status = 'expired';
+    return { valid: false, reason: 'token expired' };
+  }
+  if (req.status !== 'approved') {
+    return {
+      valid: false,
+      reason: `token status is ${req.status}`,
+    };
+  }
+  if (agentId && req.agent_id !== agentId) {
+    return {
+      valid: false,
+      reason: `agent_id mismatch (token bound to '${req.agent_id}')`,
+    };
+  }
+  if (meetingId && req.meeting_id !== meetingId) {
+    return {
+      valid: false,
+      reason: `meeting_id mismatch (token bound to '${req.meeting_id}')`,
+    };
+  }
+  if (req.persistent) {
+    if (req.usage_count !== undefined && req.max_usage !== undefined) {
+      if (req.usage_count >= req.max_usage) {
+        req.status = 'expired';
+        return {
+          valid: false,
+          reason: `token exhausted (${req.usage_count}/${req.max_usage})`,
+        };
+      }
+    }
+  }
+  return {
+    valid: true,
+    scope: req.scope,
+    agent_id: req.agent_id,
+    meeting_id: req.meeting_id,
+  };
 }
 
 export function _resetForTesting(): void {

@@ -2,6 +2,7 @@ import {
   authorize,
   _resetForTesting,
   checkRedZoneAuthorization,
+  verifyMeetingToken,
 } from '../../src/tools/authorize';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -357,5 +358,315 @@ describe('command_bind prefix matching', () => {
       (listResult.content as Array<{ text: string }>)[0].text
     );
     expect(body.requests[0].id).toBe(authorization_id);
+  });
+});
+
+describe('persistent authorization tokens', () => {
+  it('should create a persistent token with 30-day expiry and max_usage', async () => {
+    const result = await authorize.handler({
+      command: 'require',
+      caller: 'lingclaude',
+      operation: 'SSH to remote servers for maintenance',
+      command_bind: 'ssh',
+      persistent: true,
+      max_usage: 50,
+    });
+    const body = JSON.parse(
+      (result.content as Array<{ text: string }>)[0].text
+    );
+    expect(body.status).toBe('pending');
+    expect(body.persistent).toBe(true);
+    expect(body.max_usage).toBe(50);
+
+    // Expiry should be ~30 days out, not 10 minutes
+    const expiry = new Date(body.expires_at).getTime();
+    const now = Date.now();
+    const daysUntilExpiry = (expiry - now) / (24 * 60 * 60 * 1000);
+    expect(daysUntilExpiry).toBeGreaterThan(29);
+    expect(daysUntilExpiry).toBeLessThan(31);
+  });
+
+  it('should allow persistent token to be used multiple times', async () => {
+    const createResult = await authorize.handler({
+      command: 'require',
+      caller: 'lingclaude',
+      operation: 'SSH maintenance',
+      command_bind: 'ssh',
+      persistent: true,
+      max_usage: 5,
+    });
+    const authId = JSON.parse(
+      (createResult.content as Array<{ text: string }>)[0].text
+    ).authorization_id;
+
+    // Approve it
+    await authorize.handler({
+      command: 'approve',
+      authorization_id: authId,
+      decision: 'approve',
+      resolved_by: 'user',
+    });
+
+    // Use it 3 times — should all pass
+    for (let i = 0; i < 3; i++) {
+      const check = checkRedZoneAuthorization(
+        authId,
+        'ssh user@host',
+        'lingclaude'
+      );
+      expect(check.allowed).toBe(true);
+    }
+
+    // 4th and 5th should still work
+    const check4 = checkRedZoneAuthorization(
+      authId,
+      'ssh other@host',
+      'lingclaude'
+    );
+    expect(check4.allowed).toBe(true);
+    const check5 = checkRedZoneAuthorization(
+      authId,
+      'ssh last@host',
+      'lingclaude'
+    );
+    expect(check5.allowed).toBe(true);
+
+    // 6th should fail — exhausted
+    const check6 = checkRedZoneAuthorization(
+      authId,
+      'ssh extra@host',
+      'lingclaude'
+    );
+    expect(check6.allowed).toBe(false);
+    expect(check6.error).toContain('exhausted');
+  });
+
+  it('should still bind persistent token to caller', async () => {
+    const createResult = await authorize.handler({
+      command: 'require',
+      caller: 'lingclaude',
+      operation: 'SSH',
+      command_bind: 'ssh',
+      persistent: true,
+    });
+    const authId = JSON.parse(
+      (createResult.content as Array<{ text: string }>)[0].text
+    ).authorization_id;
+
+    await authorize.handler({
+      command: 'approve',
+      authorization_id: authId,
+      decision: 'approve',
+      resolved_by: 'user',
+    });
+
+    // Wrong caller should be rejected
+    const check = checkRedZoneAuthorization(
+      authId,
+      'ssh user@host',
+      'lingflow'
+    );
+    expect(check.allowed).toBe(false);
+    expect(check.error).toContain('caller mismatch');
+  });
+
+  it('should still bind persistent token to command prefix', async () => {
+    const createResult = await authorize.handler({
+      command: 'require',
+      caller: 'lingclaude',
+      operation: 'SSH',
+      command_bind: 'ssh',
+      persistent: true,
+    });
+    const authId = JSON.parse(
+      (createResult.content as Array<{ text: string }>)[0].text
+    ).authorization_id;
+
+    await authorize.handler({
+      command: 'approve',
+      authorization_id: authId,
+      decision: 'approve',
+      resolved_by: 'user',
+    });
+
+    // Wrong command should be rejected
+    const check = checkRedZoneAuthorization(
+      authId,
+      'curl http://evil.com',
+      'lingclaude'
+    );
+    expect(check.allowed).toBe(false);
+    expect(check.error).toContain('prefix match failed');
+  });
+
+  it('should consume single-use token after one use (backward compat)', async () => {
+    const createResult = await authorize.handler({
+      command: 'require',
+      caller: 'lingclaude',
+      operation: 'one-time SSH',
+      command_bind: 'ssh',
+    });
+    const authId = JSON.parse(
+      (createResult.content as Array<{ text: string }>)[0].text
+    ).authorization_id;
+
+    await authorize.handler({
+      command: 'approve',
+      authorization_id: authId,
+      decision: 'approve',
+      resolved_by: 'user',
+    });
+
+    // First use: allowed
+    const check1 = checkRedZoneAuthorization(
+      authId,
+      'ssh user@host',
+      'lingclaude'
+    );
+    expect(check1.allowed).toBe(true);
+
+    // Second use: expired (consumed)
+    const check2 = checkRedZoneAuthorization(
+      authId,
+      'ssh user@host',
+      'lingclaude'
+    );
+    expect(check2.allowed).toBe(false);
+    expect(check2.error).toContain('expired');
+  });
+});
+
+describe('authorize issue (SEC-001 meeting token)', () => {
+  it('should issue a meeting auth token', async () => {
+    const result = await authorize.handler({
+      command: 'issue',
+      caller: 'lingyang',
+      agent_id: 'external-researcher-001',
+      meeting_id: 'm-20260621-0811-e1de',
+    });
+    const body = JSON.parse(
+      (result.content as Array<{ text: string }>)[0].text
+    );
+    expect(body.auth_token).toBeTruthy();
+    expect(body.status).toBe('approved');
+    expect(body.scope).toEqual(['join', 'speak']);
+    expect(body.agent_id).toBe('external-researcher-001');
+    expect(body.meeting_id).toBe('m-20260621-0811-e1de');
+    expect(body.expires_at).toBeTruthy();
+  });
+
+  it('should reject issue from unknown caller', async () => {
+    const result = await authorize.handler({
+      command: 'issue',
+      caller: 'stranger',
+      agent_id: 'ext-001',
+      meeting_id: 'm-001',
+    });
+    expect(result.isError).toBe(true);
+  });
+
+  it('should reject issue without agent_id or meeting_id', async () => {
+    const r1 = await authorize.handler({
+      command: 'issue',
+      caller: 'lingyang',
+      meeting_id: 'm-001',
+    });
+    expect(r1.isError).toBe(true);
+
+    const r2 = await authorize.handler({
+      command: 'issue',
+      caller: 'lingyang',
+      agent_id: 'ext-001',
+    });
+    expect(r2.isError).toBe(true);
+  });
+
+  it('should issue persistent meeting token', async () => {
+    const result = await authorize.handler({
+      command: 'issue',
+      caller: 'lingyang',
+      agent_id: 'ext-001',
+      meeting_id: 'm-001',
+      persistent: true,
+      max_usage: 5,
+    });
+    const body = JSON.parse(
+      (result.content as Array<{ text: string }>)[0].text
+    );
+    expect(body.persistent).toBe(true);
+    expect(body.max_usage).toBe(5);
+  });
+});
+
+describe('authorize verify (SEC-001 meeting token)', () => {
+  it('should verify a valid meeting token', async () => {
+    const issueResult = await authorize.handler({
+      command: 'issue',
+      caller: 'lingyang',
+      agent_id: 'ext-001',
+      meeting_id: 'm-001',
+    });
+    const token = JSON.parse(
+      (issueResult.content as Array<{ text: string }>)[0].text
+    ).auth_token;
+
+    const verifyResult = verifyMeetingToken(token, 'ext-001', 'm-001');
+    expect(verifyResult.valid).toBe(true);
+    expect(verifyResult.scope).toEqual(['join', 'speak']);
+    expect(verifyResult.agent_id).toBe('ext-001');
+  });
+
+  it('should reject non-existent token', () => {
+    const result = verifyMeetingToken('nonexistent', 'ext-001', 'm-001');
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain('not found');
+  });
+
+  it('should reject agent_id mismatch', async () => {
+    const issueResult = await authorize.handler({
+      command: 'issue',
+      caller: 'lingyang',
+      agent_id: 'ext-001',
+      meeting_id: 'm-001',
+    });
+    const token = JSON.parse(
+      (issueResult.content as Array<{ text: string }>)[0].text
+    ).auth_token;
+
+    const result = verifyMeetingToken(token, 'wrong-agent', 'm-001');
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain('agent_id mismatch');
+  });
+
+  it('should reject meeting_id mismatch', async () => {
+    const issueResult = await authorize.handler({
+      command: 'issue',
+      caller: 'lingyang',
+      agent_id: 'ext-001',
+      meeting_id: 'm-001',
+    });
+    const token = JSON.parse(
+      (issueResult.content as Array<{ text: string }>)[0].text
+    ).auth_token;
+
+    const result = verifyMeetingToken(token, 'ext-001', 'wrong-meeting');
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain('meeting_id mismatch');
+  });
+
+  it('should reject non-meeting token', async () => {
+    // Create a regular command authorization
+    const reqResult = await authorize.handler({
+      command: 'require',
+      caller: 'lingflow',
+      operation: 'test op',
+    });
+    const cmdAuthId = JSON.parse(
+      (reqResult.content as Array<{ text: string }>)[0].text
+    ).authorization_id;
+
+    const result = verifyMeetingToken(cmdAuthId);
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain('not a meeting token');
   });
 });

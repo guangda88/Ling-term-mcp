@@ -19,6 +19,7 @@ import {
   IncomingMessage,
   ServerResponse,
 } from 'http';
+import * as crypto from 'crypto';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { startFileGuardian, stopFileGuardian } from '../audit/file_guardian.js';
@@ -119,7 +120,13 @@ export async function startHTTPProxy(
     if (!authToken) return true;
     const header = req.headers['authorization'] || '';
     const match = /^Bearer\s+(.+)$/i.exec(header);
-    if (!match || match[1] !== authToken) {
+    // SEC-06: timing-safe comparison to prevent side-channel attacks
+    const provided = match ? match[1] : '';
+    const expected = authToken;
+    const isValid =
+      provided.length === expected.length &&
+      crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+    if (!match || !isValid) {
       res.writeHead(401, {
         'Content-Type': 'application/json',
         'WWW-Authenticate': 'Bearer realm="mcp"',
