@@ -4,6 +4,11 @@
     "module": "commonjs",
     "lib": ["ES2022"],
     "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@security/*": ["src/security/*"],
+      "@tools/*": ["src/tools/*"]
+    },
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

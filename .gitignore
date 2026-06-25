@@ -75,3 +75,4 @@ handover.*.json
 *.key
 *.pem
 api_keys.json
+.lingxi/searxng/settings.yml
