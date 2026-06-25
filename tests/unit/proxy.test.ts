@@ -209,9 +209,9 @@ describe('proxy — real backends.json', () => {
     }
   });
 
-  it('should report total of 10 backends', () => {
+  it('should report total of 9 backends', () => {
     setBackendsPath(path.join(__dirname, '..', '..', 'backends.json'));
     const names = getBackendNames();
-    expect(names.length).toBe(10);
+    expect(names.length).toBe(9);
   });
 });

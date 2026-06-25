@@ -15,7 +15,25 @@ import { auditReport } from './tools/audit_report.js';
 import { authorize } from './tools/authorize.js';
 import { governance } from './tools/list_governance.js';
 import { proxy } from './tools/proxy.js';
+import { visibleState } from './tools/visible_state.js';
+import { infoDelta } from './tools/info_delta.js';
 import { startFileGuardian } from './audit/file_guardian.js';
+import {
+  pollMessages,
+  postReply,
+  openThread,
+  lmQuery,
+  lmCreate,
+  lmTransition,
+  lmRecordInfo,
+  lmSearch,
+  lmGet,
+  search as searchTool,
+  codeSearch,
+  codeSearchRemote,
+  extract as extractTool,
+  gateway,
+} from './tools/gateway.js';
 
 /**
  * MCP Server configuration
@@ -52,6 +70,22 @@ export function createServer(): Server {
         authorize.definition,
         governance.definition,
         proxy.definition,
+        visibleState.definition,
+        infoDelta.definition,
+        pollMessages.definition,
+        postReply.definition,
+        openThread.definition,
+        lmQuery.definition,
+        lmCreate.definition,
+        lmTransition.definition,
+        lmRecordInfo.definition,
+        lmSearch.definition,
+        lmGet.definition,
+        searchTool.definition,
+        codeSearch.definition,
+        codeSearchRemote.definition,
+        extractTool.definition,
+        gateway.definition,
       ],
     };
   });
@@ -74,6 +108,38 @@ export function createServer(): Server {
           return await governance.handler(args);
         case 'proxy':
           return await proxy.handler(args);
+        case 'visible_state':
+          return await visibleState.handler(args);
+        case 'info_delta':
+          return await infoDelta.handler(args);
+        case 'poll_messages':
+          return await pollMessages.handler(args);
+        case 'post_reply':
+          return await postReply.handler(args);
+        case 'open_thread':
+          return await openThread.handler(args);
+        case 'lm_query':
+          return await lmQuery.handler(args);
+        case 'lm_create':
+          return await lmCreate.handler(args);
+        case 'lm_transition':
+          return await lmTransition.handler(args);
+        case 'lm_record_info':
+          return await lmRecordInfo.handler(args);
+        case 'lm_search':
+          return await lmSearch.handler(args);
+        case 'lm_get':
+          return await lmGet.handler(args);
+        case 'search':
+          return await searchTool.handler(args);
+        case 'code_search':
+          return await codeSearch.handler(args);
+        case 'code_search_remote':
+          return await codeSearchRemote.handler(args);
+        case 'extract':
+          return await extractTool.handler(args);
+        case 'gateway':
+          return await gateway.handler(args);
         default:
           throw new Error(`Unknown tool: ${name}`);
       }

@@ -14,7 +14,7 @@ import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
 import { hashOutput } from '../audit/snapshot.js';
-import { buildSafeEnv } from '../tools/execute_command.js';
+import { buildSafeEnv } from '../middleware/env_builder.js';
 import {
   DEFAULT_TIMEOUT,
   MAX_TIMEOUT,

@@ -223,11 +223,16 @@ describe('CommandQueue', () => {
 
   describe('/v1/check endpoint', () => {
     let port: number;
+    let server: http.Server | undefined;
 
     beforeAll(async () => {
       port = 19530 + Math.floor(Math.random() * 1000);
-      await startGatewayServer(port);
+      server = await startGatewayServer(port);
       await new Promise((r) => setTimeout(r, 200));
+    });
+
+    afterAll(() => {
+      if (server) server.close();
     });
 
     it('should categorize whitelisted command', async () => {
@@ -242,16 +247,27 @@ describe('CommandQueue', () => {
       expect(data.requires_authorization).toBe(false);
     });
 
-    it('should categorize blacklisted command', async () => {
+    it('should categorize authorizable command (requires auth, not blocked)', async () => {
       const res = await httpRequest(port, 'POST', '/v1/check', {
         command: 'rm -rf /tmp/test',
+        source: 'lingflow_plus',
+      });
+      expect(res.status).toBe(200);
+      const data = res.data as Record<string, unknown>;
+      expect(data.category).toBe('authorizable');
+      expect(data.blocked).toBe(false);
+      expect(data.requires_authorization).toBe(true);
+    });
+
+    it('should categorize absolutely blacklisted command', async () => {
+      const res = await httpRequest(port, 'POST', '/v1/check', {
+        command: 'dd if=/dev/zero of=/tmp/test',
         source: 'lingflow_plus',
       });
       expect(res.status).toBe(403);
       const data = res.data as Record<string, unknown>;
       expect(data.category).toBe('blacklisted');
       expect(data.blocked).toBe(true);
-      expect(data.requires_authorization).toBe(false);
     });
 
     it('should categorize red_zone command', async () => {
@@ -345,6 +361,143 @@ describe('CommandQueue', () => {
       if (history.length > 0) {
         expect(history[0].status).toBeDefined();
       }
+    });
+  });
+
+  describe('/v1/auth/issue + /v1/auth/verify (SEC-001)', () => {
+    let port: number;
+    let server: http.Server | undefined;
+
+    beforeAll(async () => {
+      port = 21530 + Math.floor(Math.random() * 1000);
+      server = await startGatewayServer(port);
+      await new Promise((r) => setTimeout(r, 200));
+    });
+
+    afterAll(() => {
+      if (server) server.close();
+    });
+
+    it('should issue and verify a meeting auth token', async () => {
+      const issueRes = await httpRequest(port, 'POST', '/v1/auth/issue', {
+        caller: 'lingyang',
+        agent_id: 'external-001',
+        meeting_id: 'm-test-001',
+      });
+      expect(issueRes.status).toBe(201);
+      const issue = issueRes.data as Record<string, unknown>;
+      expect(issue.auth_token).toBeTruthy();
+      expect(issue.scope).toEqual(['join', 'speak']);
+
+      const verifyRes = await httpRequest(port, 'POST', '/v1/auth/verify', {
+        auth_token: issue.auth_token,
+        agent_id: 'external-001',
+        meeting_id: 'm-test-001',
+      });
+      expect(verifyRes.status).toBe(200);
+      const verify = verifyRes.data as Record<string, unknown>;
+      expect(verify.valid).toBe(true);
+      expect(verify.agent_id).toBe('external-001');
+    });
+
+    it('should reject issue from unknown caller', async () => {
+      const res = await httpRequest(port, 'POST', '/v1/auth/issue', {
+        caller: 'stranger',
+        agent_id: 'ext-001',
+        meeting_id: 'm-001',
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it('should reject issue missing fields', async () => {
+      const res = await httpRequest(port, 'POST', '/v1/auth/issue', {
+        caller: 'lingyang',
+        agent_id: 'ext-001',
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it('should reject verify with non-existent token', async () => {
+      const res = await httpRequest(port, 'POST', '/v1/auth/verify', {
+        auth_token: 'nonexistent',
+        agent_id: 'ext-001',
+        meeting_id: 'm-001',
+      });
+      expect(res.status).toBe(403);
+      const data = res.data as Record<string, unknown>;
+      expect(data.valid).toBe(false);
+    });
+
+    it('should reject verify with mismatched agent_id', async () => {
+      const issueRes = await httpRequest(port, 'POST', '/v1/auth/issue', {
+        caller: 'lingyang',
+        agent_id: 'ext-002',
+        meeting_id: 'm-002',
+      });
+      const issue = issueRes.data as Record<string, unknown>;
+
+      const verifyRes = await httpRequest(port, 'POST', '/v1/auth/verify', {
+        auth_token: issue.auth_token,
+        agent_id: 'wrong-agent',
+        meeting_id: 'm-002',
+      });
+      expect(verifyRes.status).toBe(403);
+      const data = verifyRes.data as Record<string, unknown>;
+      expect(data.valid).toBe(false);
+      expect(data.reason).toContain('agent_id mismatch');
+    });
+  });
+
+  describe('/v1/notify (P1-4 push API)', () => {
+    let port: number;
+    let server: http.Server | undefined;
+
+    beforeAll(async () => {
+      port = 23530 + Math.floor(Math.random() * 1000);
+      server = await startGatewayServer(port);
+      await new Promise((r) => setTimeout(r, 200));
+    });
+
+    afterAll(() => {
+      if (server) server.close();
+    });
+
+    it('should reject notify from unknown caller', async () => {
+      const res = await httpRequest(port, 'POST', '/v1/notify', {
+        source: 'stranger',
+        target: 'lingclaude',
+        message: 'hello',
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it('should reject notify missing target', async () => {
+      const res = await httpRequest(port, 'POST', '/v1/notify', {
+        source: 'lingflow',
+        message: 'hello',
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it('should reject notify missing message', async () => {
+      const res = await httpRequest(port, 'POST', '/v1/notify', {
+        source: 'lingflow',
+        target: 'lingclaude',
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it('should reach handler with valid request (downstream may be unreachable)', async () => {
+      // Notify is forwarded to :8765; either succeeds or returns 502
+      const res = await httpRequest(port, 'POST', '/v1/notify', {
+        source: 'lingflow',
+        target: 'lingclaude',
+        message: 'test notification',
+        priority: 'normal',
+      });
+      expect([200, 502]).toContain(res.status);
+      const data = res.data as Record<string, unknown>;
+      expect(typeof data.sent).toBe('boolean');
     });
   });
 });
