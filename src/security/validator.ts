@@ -93,11 +93,34 @@ export const DEFAULT_WHITELIST: string[] = [
 ];
 
 /**
- * Default command blacklist (dangerous commands)
+ * Authorization-escapable commands (former blacklist members).
+ * These commands have legitimate operational use cases (process
+ * management, file cleanup, deployment permission changes) but are
+ * too dangerous to run without explicit authorization.
+ *
+ * Execution requires: authorization_id (approved) + caller match.
  */
-export const DEFAULT_BLACKLIST: string[] = [
+export const AUTHORIZABLE_COMMANDS: string[] = [
+  'kill',
+  'killall',
+  'pkill',
   'rm',
   'rmdir',
+  'chmod',
+  'chown',
+];
+
+/**
+ * Default command blacklist (dangerous commands).
+ *
+ * Two-tier security model:
+ *   - DEFAULT_BLACKLIST: absolutely forbidden (no authorization path)
+ *   - AUTHORIZABLE_COMMANDS: require authorization_id to execute
+ *
+ * AUTHORIZABLE_COMMANDS are checked by blacklistCheck middleware which
+ * routes them to the authorization path instead of hard-rejecting.
+ */
+export const DEFAULT_BLACKLIST: string[] = [
   'del',
   'format',
   'mkfs',
@@ -113,12 +136,7 @@ export const DEFAULT_BLACKLIST: string[] = [
   'telinit',
   'systemctl',
   'service',
-  'kill',
-  'killall',
-  'pkill',
   'chattr',
-  'chmod',
-  'chown',
   'passwd',
   'usermod',
   'userdel',
@@ -174,6 +192,7 @@ export type CommandCategory =
   | 'whitelisted'
   | 'red_zone'
   | 'blacklisted'
+  | 'authorizable'
   | 'unknown';
 
 /**
@@ -313,6 +332,19 @@ export class SecurityValidator {
       };
     }
 
+    // Authorizable commands (kill/rm/chmod/...) pass validation here;
+    // the authorization gate is enforced by blacklistCheck middleware.
+    if (this.isAuthorizable(command)) {
+      const dangerousPattern = this.findDangerousPattern(fullCommand);
+      if (dangerousPattern) {
+        return {
+          valid: false,
+          error: `Command contains dangerous pattern: ${dangerousPattern}`,
+        };
+      }
+      return { valid: true };
+    }
+
     if (!this.config.allowUnknownCommands && !this.isWhitelisted(command)) {
       return {
         valid: false,
@@ -348,7 +380,17 @@ export class SecurityValidator {
       };
     }
 
-    const BLOCKED_METACHARS = [/;/, /`/, /\$\(/];
+    // SEC-02: 扩展阻拦元字符，防止换行符/圆括号/后台符绕过
+    const BLOCKED_METACHARS: RegExp[] = [
+      /;/, // 分号（命令分隔）
+      /`/, // 反引号（命令替换）
+      /\$\(/, // $(...) 命令替换
+      /\(/, // 圆括号（子shell）
+      /\)/, // 圆括号闭合
+      /[^&]&[^&]/, // 单个&（后台执行，排除&&）
+      /\n/, // 换行符（命令分隔）
+      /\r/, // 回车符
+    ];
     for (const metachar of BLOCKED_METACHARS) {
       if (metachar.test(fullCommand)) {
         return {
@@ -378,6 +420,12 @@ export class SecurityValidator {
           valid: false,
           error: `Command '${firstWord}' is blacklisted for security reasons`,
         };
+      }
+
+      // Authorizable commands pass validation; authorization is enforced
+      // by blacklistCheck middleware (requires authorization_id + caller match).
+      if (this.isAuthorizable(firstWord)) {
+        continue;
       }
 
       if (!this.config.allowUnknownCommands && !this.isWhitelisted(firstWord)) {
@@ -435,9 +483,15 @@ export class SecurityValidator {
     return RED_ZONE_COMMANDS.includes(command.split(' ')[0]);
   }
 
+  isAuthorizable(command: string): boolean {
+    const cmd = command.split(' ')[0];
+    return AUTHORIZABLE_COMMANDS.includes(cmd);
+  }
+
   categorize(command: string): CommandCategory {
     const cmd = command.split(' ')[0];
     if (this.isInList(cmd, this.config.blacklist)) return 'blacklisted';
+    if (AUTHORIZABLE_COMMANDS.includes(cmd)) return 'authorizable';
     if (RED_ZONE_COMMANDS.includes(cmd)) return 'red_zone';
     if (this.findDangerousPattern(command)) return 'red_zone';
     if (this.isInList(cmd, this.config.whitelist)) return 'whitelisted';
@@ -468,7 +522,17 @@ export class SecurityValidator {
       };
     }
 
-    const BLOCKED_METACHARS = [/;/, /`/, /\$\(/];
+    // SEC-02: 与 validateShellCommand 保持一致的扩展元字符检查
+    const BLOCKED_METACHARS: RegExp[] = [
+      /;/,
+      /`/,
+      /\$\(/,
+      /\(/,
+      /\)/,
+      /[^&]&[^&]/,
+      /\n/,
+      /\r/,
+    ];
     for (const metachar of BLOCKED_METACHARS) {
       if (metachar.test(command)) {
         return {
@@ -491,7 +555,7 @@ export const securityValidator = new SecurityValidator();
  * Directly mutates the module-level arrays, which the singleton validator references.
  */
 export function applyListChange(
-  listType: 'whitelist' | 'blacklist' | 'red_zone',
+  listType: 'whitelist' | 'blacklist' | 'authorizable' | 'red_zone',
   action: 'add' | 'remove',
   entries: string[]
 ): void {
@@ -500,7 +564,9 @@ export function applyListChange(
       ? DEFAULT_WHITELIST
       : listType === 'blacklist'
         ? DEFAULT_BLACKLIST
-        : RED_ZONE_COMMANDS;
+        : listType === 'authorizable'
+          ? AUTHORIZABLE_COMMANDS
+          : RED_ZONE_COMMANDS;
 
   for (const entry of entries) {
     const idx = targetArray.indexOf(entry);
@@ -518,11 +584,13 @@ export function applyListChange(
 export function getEffectiveLists(): {
   whitelist: string[];
   blacklist: string[];
+  authorizable: string[];
   red_zone: string[];
 } {
   return {
     whitelist: [...DEFAULT_WHITELIST],
     blacklist: [...DEFAULT_BLACKLIST],
+    authorizable: [...AUTHORIZABLE_COMMANDS],
     red_zone: [...RED_ZONE_COMMANDS],
   };
 }

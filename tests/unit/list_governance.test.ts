@@ -80,10 +80,10 @@ describe('list_governance — createProposal', () => {
     expect(result.error).toContain('at least 10 characters');
   });
 
-  it('should reject removal of immutable blacklist entries', () => {
+  it('should reject removal of immutable authorizable entries', () => {
     const result = createProposal(
       'lingxi',
-      'blacklist',
+      'authorizable',
       'remove',
       ['rm'],
       'Trying to unblock rm command'
@@ -252,6 +252,7 @@ describe('list_governance — listProposals', () => {
 describe('list_governance — immutable blacklist', () => {
   it('should include core dangerous commands', () => {
     const immutable = getImmutableBlacklist();
+    // rm/chmod/chown are immutable (cannot be un-protected via governance)
     expect(immutable).toContain('rm');
     expect(immutable).toContain('sudo');
     expect(immutable).toContain('dd');
@@ -263,7 +264,9 @@ describe('list_governance — snapshotLists', () => {
   it('should return current effective lists', () => {
     const snap = snapshotLists();
     expect(snap.whitelist).toContain('ls');
-    expect(snap.blacklist).toContain('rm');
+    // rm is now authorizable (escaped to auth path), not blacklist
+    expect(snap.authorizable).toContain('rm');
+    expect(snap.blacklist).toContain('sudo');
     expect(snap.red_zone).toContain('ssh');
   });
 });

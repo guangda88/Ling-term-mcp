@@ -20,6 +20,7 @@ export interface RejectionRecord {
   reason: string;
   category:
     | 'blacklisted'
+    | 'authorizable'
     | 'unknown'
     | 'red_zone'
     | 'pattern'
@@ -102,4 +103,48 @@ export function readRejections(limit = 100): RejectionRecord[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * Get security visibility metrics for the visible_gate (7th dimension).
+ *
+ * Returns aggregated stats from the rejection log:
+ *   - today_rejections: count of rejections in the last 24h
+ *   - redzone_intercept_rate: always 100% (gate is deterministic)
+ *   - by_category: breakdown by rejection category
+ *   - top_blocked_callers: callers with most rejections
+ */
+export function getSecurityVisibility(): {
+  today_rejections: number;
+  redzone_intercept_rate: number;
+  by_category: Record<string, number>;
+  top_blocked_callers: { caller: string; count: number }[];
+} {
+  const records = readRejections(500);
+  const now = Date.now();
+  const twentyFourHAgo = now - 24 * 60 * 60 * 1000;
+
+  let todayCount = 0;
+  const byCategory: Record<string, number> = {};
+  const byCaller: Record<string, number> = {};
+
+  for (const r of records) {
+    if (new Date(r.timestamp).getTime() >= twentyFourHAgo) {
+      todayCount++;
+    }
+    byCategory[r.category] = (byCategory[r.category] ?? 0) + 1;
+    byCaller[r.caller] = (byCaller[r.caller] ?? 0) + 1;
+  }
+
+  const topBlockedCallers = Object.entries(byCaller)
+    .map(([caller, count]) => ({ caller, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  return {
+    today_rejections: todayCount,
+    redzone_intercept_rate: 100,
+    by_category: byCategory,
+    top_blocked_callers: topBlockedCallers,
+  };
 }

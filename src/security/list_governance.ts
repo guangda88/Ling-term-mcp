@@ -12,10 +12,29 @@
  */
 
 import { randomUUID } from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 import { isKnownMember } from './identity.js';
 import { applyListChange, getEffectiveLists } from './validator.js';
 
-export type ListType = 'whitelist' | 'blacklist' | 'red_zone';
+// BUS-02: Persist proposals to JSONL so they survive process restarts
+const PROPOSAL_LOG_DIR =
+  process.env.LING_TERM_BASEDIR || path.join(os.homedir(), '.ling-term-mcp');
+const PROPOSAL_LOG_FILE = path.join(PROPOSAL_LOG_DIR, 'proposals.jsonl');
+
+function persistProposal(p: ListProposal): void {
+  try {
+    if (!fs.existsSync(PROPOSAL_LOG_DIR)) {
+      fs.mkdirSync(PROPOSAL_LOG_DIR, { recursive: true });
+    }
+    fs.appendFileSync(PROPOSAL_LOG_FILE, JSON.stringify(p) + '\n', 'utf8');
+  } catch {
+    // Non-fatal: persistence must never block governance flow
+  }
+}
+
+export type ListType = 'whitelist' | 'blacklist' | 'authorizable' | 'red_zone';
 export type ListAction = 'add' | 'remove';
 
 export type ProposalStatus =
@@ -115,14 +134,14 @@ function validateEntries(entries: string[]): string | null {
  * Check if a proposed removal is blocked by the immutable set.
  */
 function checkImmutable(
-  listType: ListType,
+  _listType: ListType,
   action: ListAction,
   entries: string[]
 ): string | null {
-  if (listType === 'blacklist' && action === 'remove') {
+  if (action === 'remove') {
     const blocked = entries.filter((e) => IMMUTABLE_BLACKLIST.has(e));
     if (blocked.length > 0) {
-      return `Cannot remove immutable blacklist entries: ${blocked.join(', ')}. These commands are permanently blocked.`;
+      return `Cannot remove immutable entries: ${blocked.join(', ')}. These commands are permanently protected.`;
     }
   }
   return null;
@@ -151,7 +170,9 @@ export function createProposal(
   if (immutableError) return { error: immutableError };
 
   // Validate list_type
-  if (!['whitelist', 'blacklist', 'red_zone'].includes(listType)) {
+  if (
+    !['whitelist', 'blacklist', 'authorizable', 'red_zone'].includes(listType)
+  ) {
     return { error: `invalid list_type: '${listType}'` };
   }
   if (!['add', 'remove'].includes(action)) {
@@ -174,6 +195,7 @@ export function createProposal(
     status: 'pending',
   };
   proposals.set(id, proposal);
+  persistProposal(proposal);
 
   return { proposal };
 }
@@ -220,6 +242,7 @@ export function resolveProposal(
     p.rejected_by = approver;
     p.rejected_at = nowIso;
     p.reject_reason = rejectReason || 'No reason provided';
+    persistProposal(p);
     return { proposal: p };
   }
 
@@ -237,6 +260,7 @@ export function resolveProposal(
     p.apply_error = err instanceof Error ? err.message : String(err);
   }
 
+  persistProposal(p);
   return { proposal: p };
 }
 
