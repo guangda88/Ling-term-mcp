@@ -17,7 +17,7 @@ interface AuthorizationRequest {
   max_usage?: number;
   usage_count?: number;
   // SEC-001: Meeting auth token fields
-  target?: 'command' | 'meeting_invite';
+  target?: 'command' | 'meeting_invite' | 'unbound_auth';
   meeting_id?: string;
   agent_id?: string;
   scope?: string[];
@@ -388,34 +388,27 @@ export const authorize = {
             isError: true,
           };
         }
-        if (!agent_id || typeof agent_id !== 'string') {
-          return {
-            content: [
-              { type: 'text' as const, text: 'Error: agent_id is required' },
-            ],
-            isError: true,
-          };
-        }
-        if (!meeting_id || typeof meeting_id !== 'string') {
-          return {
-            content: [
-              { type: 'text' as const, text: 'Error: meeting_id is required' },
-            ],
-            isError: true,
-          };
-        }
+        // agent_id and meeting_id are optional (unbound tokens allowed for GAP-2 fix)
+        const hasAgentId = agent_id && typeof agent_id === 'string';
+        const hasMeetingId = meeting_id && typeof meeting_id === 'string';
 
         cleanup();
 
         const now = new Date();
         const id = randomUUID();
         const ttl = persistent ? PERSISTENT_TTL_MS : AUTH_TTL_MS;
-        const scope = ['join', 'speak'];
+        const scope = hasAgentId && hasMeetingId ? ['join', 'speak'] : [];
         const req: AuthorizationRequest = {
           id,
           caller,
-          operation: `meeting token for ${agent_id} -> ${meeting_id}`,
-          details: { agent_id, meeting_id },
+          operation:
+            hasAgentId && hasMeetingId
+              ? `meeting token for ${agent_id} -> ${meeting_id}`
+              : 'unbound token',
+          details: {
+            agent_id: hasAgentId ? agent_id : undefined,
+            meeting_id: hasMeetingId ? meeting_id : undefined,
+          },
           created_at: now.toISOString(),
           expires_at: new Date(now.getTime() + ttl).toISOString(),
           status: 'approved',
@@ -424,9 +417,10 @@ export const authorize = {
           persistent: persistent || undefined,
           max_usage: persistent ? (max_usage ?? DEFAULT_MAX_USAGE) : undefined,
           usage_count: 0,
-          target: 'meeting_invite',
-          meeting_id,
-          agent_id,
+          target:
+            hasAgentId && hasMeetingId ? 'meeting_invite' : 'unbound_auth',
+          meeting_id: hasMeetingId ? meeting_id : undefined,
+          agent_id: hasAgentId ? agent_id : undefined,
           scope,
         };
 
@@ -438,8 +432,8 @@ export const authorize = {
               type: 'text' as const,
               text: json({
                 auth_token: id,
-                agent_id,
-                meeting_id,
+                agent_id: hasAgentId ? agent_id : undefined,
+                meeting_id: hasMeetingId ? meeting_id : undefined,
                 scope,
                 expires_at: req.expires_at,
                 persistent: persistent || undefined,
@@ -574,13 +568,16 @@ export function verifyMeetingToken(
   agent_id?: string;
   meeting_id?: string;
   reason?: string;
+  usage_count?: number;
+  max_usage?: number;
 } {
   const req = requests.get(token);
   if (!req) {
     return { valid: false, reason: 'token not found' };
   }
-  if (req.target !== 'meeting_invite') {
-    return { valid: false, reason: 'token is not a meeting token' };
+  // Support both meeting_invite and unbound_auth tokens
+  if (req.target !== 'meeting_invite' && req.target !== 'unbound_auth') {
+    return { valid: false, reason: 'token is not a valid auth token' };
   }
   // Check expiry first (may transition approved → expired)
   const now = Date.now();
@@ -588,32 +585,65 @@ export function verifyMeetingToken(
     req.status = 'expired';
     return { valid: false, reason: 'token expired' };
   }
+  // Check max_usage BEFORE status, so an exhausted token returns 'exhausted'
+  // rather than 'token status is expired' (status was auto-set to 'expired'
+  // when the cap was reached on the previous verification).
+  if (
+    req.persistent &&
+    req.usage_count !== undefined &&
+    req.max_usage !== undefined &&
+    req.usage_count >= req.max_usage
+  ) {
+    return {
+      valid: false,
+      reason: `token exhausted (${req.usage_count}/${req.max_usage})`,
+    };
+  }
   if (req.status !== 'approved') {
     return {
       valid: false,
       reason: `token status is ${req.status}`,
     };
   }
-  if (agentId && req.agent_id !== agentId) {
-    return {
-      valid: false,
-      reason: `agent_id mismatch (token bound to '${req.agent_id}')`,
-    };
+  // GAP-2 Fix: Enforce binding checks - if token was bound to agent_id, verify request MUST provide it
+  // Previous bug: "if (agentId && ...)" skipped check when verify request omitted agent_id
+  if (req.agent_id) {
+    if (!agentId) {
+      return {
+        valid: false,
+        reason: `agent_id binding required but not provided`,
+      };
+    }
+    if (agentId !== req.agent_id) {
+      return {
+        valid: false,
+        reason: `agent_id mismatch (token bound to '${req.agent_id}')`,
+      };
+    }
   }
-  if (meetingId && req.meeting_id !== meetingId) {
-    return {
-      valid: false,
-      reason: `meeting_id mismatch (token bound to '${req.meeting_id}')`,
-    };
+  // GAP-2 Fix: Enforce binding checks - if token was bound to meeting_id, verify request MUST provide it
+  // Previous bug: "if (meetingId && ...)" skipped check when verify request omitted meeting_id
+  if (req.meeting_id) {
+    if (!meetingId) {
+      return {
+        valid: false,
+        reason: `meeting_id binding required but not provided`,
+      };
+    }
+    if (meetingId !== req.meeting_id) {
+      return {
+        valid: false,
+        reason: `meeting_id mismatch (token bound to '${req.meeting_id}')`,
+      };
+    }
   }
   if (req.persistent) {
     if (req.usage_count !== undefined && req.max_usage !== undefined) {
+      // Increment usage on successful verification
+      req.usage_count++;
+      // Auto-expire when usage cap is reached
       if (req.usage_count >= req.max_usage) {
         req.status = 'expired';
-        return {
-          valid: false,
-          reason: `token exhausted (${req.usage_count}/${req.max_usage})`,
-        };
       }
     }
   }
@@ -622,6 +652,8 @@ export function verifyMeetingToken(
     scope: req.scope,
     agent_id: req.agent_id,
     meeting_id: req.meeting_id,
+    usage_count: req.usage_count,
+    max_usage: req.max_usage,
   };
 }
 

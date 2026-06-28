@@ -3,7 +3,7 @@ import {
   _resetForTesting,
   checkRedZoneAuthorization,
   verifyMeetingToken,
-} from '../../src/tools/authorize';
+} from '../../dist/tools/authorize';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
@@ -565,20 +565,26 @@ describe('authorize issue (SEC-001 meeting token)', () => {
     expect(result.isError).toBe(true);
   });
 
-  it('should reject issue without agent_id or meeting_id', async () => {
+  it('should allow unbound token (no agent_id and no meeting_id)', async () => {
     const r1 = await authorize.handler({
       command: 'issue',
       caller: 'lingyang',
-      meeting_id: 'm-001',
     });
-    expect(r1.isError).toBe(true);
+    expect(r1.isError).toBeUndefined();
 
     const r2 = await authorize.handler({
       command: 'issue',
       caller: 'lingyang',
+      meeting_id: 'm-001',
+    });
+    expect(r2.isError).toBeUndefined();
+
+    const r3 = await authorize.handler({
+      command: 'issue',
+      caller: 'lingyang',
       agent_id: 'ext-001',
     });
-    expect(r2.isError).toBe(true);
+    expect(r3.isError).toBeUndefined();
   });
 
   it('should issue persistent meeting token', async () => {
@@ -667,6 +673,145 @@ describe('authorize verify (SEC-001 meeting token)', () => {
 
     const result = verifyMeetingToken(cmdAuthId);
     expect(result.valid).toBe(false);
-    expect(result.reason).toContain('not a meeting token');
+    expect(result.reason).toContain('not a valid auth token');
+  });
+
+  it('should enforce max_usage on persistent meeting token (P2 fix)', async () => {
+    // Issue a persistent meeting token with max_usage=2
+    const issueResult = await authorize.handler({
+      command: 'issue',
+      caller: 'lingyang',
+      agent_id: 'ext-p2',
+      meeting_id: 'm-p2',
+      persistent: true,
+      max_usage: 2,
+    });
+    const token = JSON.parse(
+      (issueResult.content as Array<{ text: string }>)[0].text
+    ).auth_token;
+
+    // First verify: allowed, usage_count -> 1
+    const v1 = verifyMeetingToken(token, 'ext-p2', 'm-p2');
+    expect(v1.valid).toBe(true);
+    expect(v1.usage_count).toBe(1);
+    expect(v1.max_usage).toBe(2);
+
+    // Second verify: allowed (still under cap), usage_count -> 2
+    const v2 = verifyMeetingToken(token, 'ext-p2', 'm-p2');
+    expect(v2.valid).toBe(true);
+    expect(v2.usage_count).toBe(2);
+
+    // Third verify: rejected (usage exhausted)
+    const v3 = verifyMeetingToken(token, 'ext-p2', 'm-p2');
+    expect(v3.valid).toBe(false);
+    expect(v3.reason).toContain('exhausted');
+  });
+
+  // GAP-2: Agent/meeting binding bypass vulnerability
+  describe('verifyMeetingToken GAP-2 binding enforcement', () => {
+    it('should reject when token bound to agent_id but verify provides different agent_id', async () => {
+      const issueResult = await authorize.handler({
+        command: 'issue',
+        caller: 'lingyang',
+        agent_id: 'lingresearch',
+        meeting_id: 'sync-2026',
+      });
+      const token = JSON.parse(
+        (issueResult.content as Array<{ text: string }>)[0].text
+      ).auth_token;
+
+      // Verify with wrong agent_id → fail
+      const result = verifyMeetingToken(token, 'lingxi', 'sync-2026');
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain('agent_id mismatch');
+    });
+
+    it('should reject when token bound to agent_id but verify provides no agent_id (GAP-2 fix)', async () => {
+      const issueResult = await authorize.handler({
+        command: 'issue',
+        caller: 'lingyang',
+        agent_id: 'lingresearch',
+        meeting_id: 'sync-2026',
+      });
+      const token = JSON.parse(
+        (issueResult.content as Array<{ text: string }>)[0].text
+      ).auth_token;
+
+      // Verify with meeting_id only (no agent_id) → should fail because token is bound to agent_id
+      const result = verifyMeetingToken(token, undefined, 'sync-2026');
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain('agent_id binding required');
+    });
+
+    it('should reject when token bound to meeting_id but verify provides different meeting_id', async () => {
+      const issueResult = await authorize.handler({
+        command: 'issue',
+        caller: 'lingyang',
+        agent_id: 'lingresearch',
+        meeting_id: 'sync-2026',
+      });
+      const token = JSON.parse(
+        (issueResult.content as Array<{ text: string }>)[0].text
+      ).auth_token;
+
+      // Verify with wrong meeting_id → fail
+      const result = verifyMeetingToken(token, 'lingresearch', 'wrong-meeting');
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain('meeting_id mismatch');
+    });
+
+    it('should reject when token bound to meeting_id but verify provides no meeting_id (GAP-2 fix)', async () => {
+      const issueResult = await authorize.handler({
+        command: 'issue',
+        caller: 'lingyang',
+        agent_id: 'lingresearch',
+        meeting_id: 'sync-2026',
+      });
+      const token = JSON.parse(
+        (issueResult.content as Array<{ text: string }>)[0].text
+      ).auth_token;
+
+      // Verify with agent_id only (no meeting_id) → should fail because token is bound to meeting_id
+      const result = verifyMeetingToken(token, 'lingresearch', undefined);
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain('meeting_id binding required');
+    });
+
+    it('should allow unbound token verification when neither agent_id nor meeting_id is bound', async () => {
+      // Issue token without agent_id or meeting_id binding
+      const issueResult = await authorize.handler({
+        command: 'issue',
+        caller: 'lingyang',
+        persistent: true,
+        max_usage: 5,
+      });
+      const token = JSON.parse(
+        (issueResult.content as Array<{ text: string }>)[0].text
+      ).auth_token;
+
+      // Verify with no bindings → should succeed
+      const result = verifyMeetingToken(token);
+      expect(result.valid).toBe(true);
+      expect(result.agent_id).toBeUndefined();
+      expect(result.meeting_id).toBeUndefined();
+    });
+
+    it('should allow verification when token bound to agent_id and verify provides matching agent_id', async () => {
+      const issueResult = await authorize.handler({
+        command: 'issue',
+        caller: 'lingyang',
+        agent_id: 'lingresearch',
+        meeting_id: 'sync-2026',
+      });
+      const token = JSON.parse(
+        (issueResult.content as Array<{ text: string }>)[0].text
+      ).auth_token;
+
+      // Verify with correct bindings → success
+      const result = verifyMeetingToken(token, 'lingresearch', 'sync-2026');
+      expect(result.valid).toBe(true);
+      expect(result.agent_id).toBe('lingresearch');
+      expect(result.meeting_id).toBe('sync-2026');
+    });
   });
 });
