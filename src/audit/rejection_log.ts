@@ -12,6 +12,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { callMcpTool } from '../lib/mcp_client.js';
+import { appendDatalogRecord } from './rejection_to_datalog.js';
 
 export interface RejectionRecord {
   id: string;
@@ -167,6 +168,10 @@ export function logRejection(
         // Non-fatal: lingmemory sync must never block rejection logging
       });
     }
+
+    // L6 stub: emit datalog event (P1.3 / P1.4)
+    // Disabled via LING_DATALOG_ENABLED=0; failures are non-fatal
+    appendDatalogRecord(full);
   } catch {
     // Non-fatal: rejection logging must never block command execution flow
   }
