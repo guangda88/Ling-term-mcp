@@ -1,3 +1,7 @@
+// Prevent test mutations from corrupting the real security_registry.yaml
+process.env['LING_TERM_REGISTRY_SKIP_SYNC'] = '1';
+process.env['LING_TERM_REGISTRY_SKIP_PERSIST'] = '1';
+
 import { governance } from '../../src/tools/list_governance';
 import {
   createProposal,

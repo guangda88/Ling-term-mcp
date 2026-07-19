@@ -11,6 +11,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
+import { callMcpTool } from '../lib/mcp_client.js';
 
 export interface RejectionRecord {
   id: string;
@@ -25,7 +26,12 @@ export interface RejectionRecord {
     | 'red_zone'
     | 'pattern'
     | 'builtin_pattern'
-    | 'unauthorized';
+    | 'unauthorized'
+    | 'sensitive_path'
+    | 'cross_member'
+    | 'in_workspace_write'
+    | 'outside_paths'
+    | 'not_found';
   session_id?: string;
   shell?: boolean;
 }
@@ -38,6 +44,83 @@ const REJECTION_FILE =
   process.env['LING_TERM_REJECTION_LOG'] ||
   path.join(REJECTION_DIR, 'rejections.jsonl');
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
+const LINGMEMORY_URL = 'http://127.0.0.1:9530/mcp';
+
+// ── Sanitization (ported from tools/export_rejections_to_lingmemory.py) ──
+
+const SENSITIVE_PATTERNS: [RegExp, string][] = [
+  [
+    /(?:api[_-]?key|token|password|secret)["']?\s*[:=]\s*["']?[\w-]{8,}/gi,
+    '***REDACTED***',
+  ],
+  [/sk-[a-zA-Z0-9]{20,}/g, '***REDACTED***'],
+  [/Bearer\s+[a-zA-Z0-9\-._~+/]+=*/g, 'Bearer ***REDACTED***'],
+  [/AKIA[0-9A-Z]{16}/g, '***REDACTED***'],
+];
+
+const PATH_PATTERNS: [RegExp, string][] = [
+  [/\/home\/[^/\s]+/g, '/home/REDACTED'],
+  [/\/root(?=\/|\s|$)/g, '/home/REDACTED'],
+];
+
+export function sanitize(text: string): string {
+  if (!text) return text;
+  let result = text;
+  for (const [pattern, replacement] of SENSITIVE_PATTERNS) {
+    result = result.replace(pattern, replacement);
+  }
+  for (const [pattern, replacement] of PATH_PATTERNS) {
+    result = result.replace(pattern, replacement);
+  }
+  return result;
+}
+
+const CATEGORY_SEVERITY: Record<string, string> = {
+  blacklisted: 'critical',
+  red_zone: 'high',
+  pattern: 'high',
+  builtin_pattern: 'high',
+  unauthorized: 'medium',
+  unknown: 'low',
+};
+
+/**
+ * Sync a rejection record to lingmemory as a code_trace entry.
+ * Fire-and-forget: caller never awaits this.
+ */
+export async function syncToLingMemory(record: RejectionRecord): Promise<void> {
+  const sanitizedCmd = sanitize(record.command).slice(0, 2000);
+  const sanitizedReason = sanitize(record.reason);
+
+  const data = JSON.stringify({
+    prompt: `执行命令: ${sanitizedCmd}`,
+    language: record.shell ? 'bash' : 'shell',
+    generated_code: sanitizedCmd,
+    test_result: 'error',
+    member: record.caller,
+    quality_signal: {
+      source: 'lingxi_security',
+      category: record.category,
+      reason: sanitizedReason,
+      caller: record.caller,
+      severity: CATEGORY_SEVERITY[record.category] ?? 'medium',
+    },
+    project: 'ling-term-mcp',
+    exit_code: -1,
+    stderr_snippet: sanitizedReason.slice(0, 200),
+  });
+
+  await callMcpTool(LINGMEMORY_URL, 'lm_create', {
+    member: 'lingxi',
+    type: 'code_trace',
+    data,
+  });
+}
+
+function isHookEnabled(): boolean {
+  return process.env['LING_TERM_REJECTION_HOOK_DISABLED'] !== '1';
+}
 
 function ensureDir(): void {
   if (!fs.existsSync(REJECTION_DIR)) {
@@ -78,6 +161,12 @@ export function logRejection(
       ...record,
     };
     fs.appendFileSync(REJECTION_FILE, JSON.stringify(full) + '\n', 'utf8');
+
+    if (isHookEnabled()) {
+      void syncToLingMemory(full).catch(() => {
+        // Non-fatal: lingmemory sync must never block rejection logging
+      });
+    }
   } catch {
     // Non-fatal: rejection logging must never block command execution flow
   }

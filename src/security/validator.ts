@@ -271,6 +271,8 @@ const INTERPRETER_RCE_FLAGS: Record<string, RegExp[]> = {
 export interface SecurityConfig {
   whitelist: string[];
   blacklist: string[];
+  authorizable?: string[];
+  red_zone?: string[];
   allowUnknownCommands: boolean;
   sanitizeUserInput: boolean;
   maxCommandLength: number;
@@ -282,6 +284,8 @@ export interface SecurityConfig {
 export const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
   whitelist: DEFAULT_WHITELIST,
   blacklist: DEFAULT_BLACKLIST,
+  authorizable: AUTHORIZABLE_COMMANDS,
+  red_zone: RED_ZONE_COMMANDS,
   allowUnknownCommands: false,
   sanitizeUserInput: true,
   maxCommandLength: 10000,
@@ -294,7 +298,11 @@ export class SecurityValidator {
   private config: SecurityConfig;
 
   constructor(config: SecurityConfig = DEFAULT_SECURITY_CONFIG) {
-    this.config = config;
+    this.config = {
+      ...config,
+      authorizable: config.authorizable ?? AUTHORIZABLE_COMMANDS,
+      red_zone: config.red_zone ?? RED_ZONE_COMMANDS,
+    };
   }
 
   /**
@@ -480,19 +488,23 @@ export class SecurityValidator {
   }
 
   isRedZone(command: string): boolean {
-    return RED_ZONE_COMMANDS.includes(command.split(' ')[0]);
+    return (this.config.red_zone ?? RED_ZONE_COMMANDS).includes(
+      command.split(' ')[0]
+    );
   }
 
   isAuthorizable(command: string): boolean {
     const cmd = command.split(' ')[0];
-    return AUTHORIZABLE_COMMANDS.includes(cmd);
+    return (this.config.authorizable ?? AUTHORIZABLE_COMMANDS).includes(cmd);
   }
 
   categorize(command: string): CommandCategory {
     const cmd = command.split(' ')[0];
     if (this.isInList(cmd, this.config.blacklist)) return 'blacklisted';
-    if (AUTHORIZABLE_COMMANDS.includes(cmd)) return 'authorizable';
-    if (RED_ZONE_COMMANDS.includes(cmd)) return 'red_zone';
+    if ((this.config.authorizable ?? AUTHORIZABLE_COMMANDS).includes(cmd))
+      return 'authorizable';
+    if ((this.config.red_zone ?? RED_ZONE_COMMANDS).includes(cmd))
+      return 'red_zone';
     if (this.findDangerousPattern(command)) return 'red_zone';
     if (this.isInList(cmd, this.config.whitelist)) return 'whitelisted';
     return 'unknown';
@@ -548,11 +560,37 @@ export class SecurityValidator {
 
 export const securityValidator = new SecurityValidator();
 
+// === YAML registry integration ===
+
+import { tryLoadRegistry, applyRegistryChange } from './registry.js';
+
+/**
+ * Sync module-level arrays from the YAML registry file at load time.
+ * If the file is missing or corrupt, hardcoded defaults remain in effect.
+ * This is called once at module initialization.
+ */
+function syncFromRegistry(): void {
+  if (process.env['LING_TERM_REGISTRY_SKIP_SYNC'] === '1') return;
+  const reg = tryLoadRegistry();
+  if (!reg) return;
+
+  DEFAULT_WHITELIST.length = 0;
+  DEFAULT_WHITELIST.push(...reg.whitelist.commands);
+  DEFAULT_BLACKLIST.length = 0;
+  DEFAULT_BLACKLIST.push(...reg.blacklist.commands);
+  AUTHORIZABLE_COMMANDS.length = 0;
+  AUTHORIZABLE_COMMANDS.push(...reg.authorizable.commands);
+  RED_ZONE_COMMANDS.length = 0;
+  RED_ZONE_COMMANDS.push(...reg.red_zone.commands);
+}
+
+syncFromRegistry();
+
 // === Runtime list mutations (governance dual-sign controlled) ===
 
 /**
  * Apply a list change at runtime. Called by list_governance after dual-sign approval.
- * Directly mutates the module-level arrays, which the singleton validator references.
+ * Mutates module-level arrays AND persists to security_registry.yaml.
  */
 export function applyListChange(
   listType: 'whitelist' | 'blacklist' | 'authorizable' | 'red_zone',
@@ -575,6 +613,14 @@ export function applyListChange(
     } else if (action === 'remove' && idx !== -1) {
       targetArray.splice(idx, 1);
     }
+  }
+
+  // Persist to YAML (non-fatal: in-memory change already applied)
+  if (process.env['LING_TERM_REGISTRY_SKIP_PERSIST'] === '1') return;
+  try {
+    applyRegistryChange(listType, action, entries);
+  } catch {
+    // Registry file not available - in-memory change still works
   }
 }
 

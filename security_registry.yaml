@@ -1,0 +1,182 @@
+# Security Registry v1
+# Auto-generated from src/security/validator.ts hardcoded arrays
+# Governance dual-sign changes are persisted back to this file
+version: 1
+updated: 2026-07-15
+source: src/security/validator.ts
+
+whitelist:
+  description: "安全命令，可直接执行（无限制）"
+  commands:
+  - ls
+  - pwd
+  - cd
+  - echo
+  - cat
+  - grep
+  - head
+  - tail
+  - wc
+  - sort
+  - uniq
+  - find
+  - which
+  - whereis
+  - date
+  - whoami
+  - id
+  - uname
+  - df
+  - du
+  - free
+  - ps
+  - top
+  - htop
+  - history
+  - git
+  - node
+  - python
+  - python3
+  - pipenv
+  - poetry
+  - yarn
+  - cargo
+  - go
+  - rustc
+  - mvn
+  - gradle
+  - make
+  - cmake
+  - gcc
+  - g++
+  - clang
+  - clang++
+  - javac
+  - java
+  - javap
+  - scala
+  - ruby
+  - gem
+  - php
+  - perl
+  - r
+  - rscript
+  - tar
+  - gzip
+  - gunzip
+  - zip
+  - unzip
+  - xz
+  - bzip2
+  - file
+  - stat
+  - touch
+  - mkdir
+  - cp
+  - mv
+  - ln
+  - tree
+  - diff
+  - cmp
+  - patch
+  - sed
+  - awk
+  - tr
+  - cut
+  - xargs
+  - tee
+  - jq
+  - sleep
+  - true
+  - false
+  - test
+
+blacklist:
+  description: "绝对禁止的命令（无授权路径）"
+  commands:
+  - del
+  - format
+  - mkfs
+  - dd
+  - fdisk
+  - parted
+  - fdformat
+  - shutdown
+  - poweroff
+  - halt
+  - reboot
+  - init
+  - telinit
+  - systemctl
+  - service
+  - chattr
+  - passwd
+  - usermod
+  - userdel
+  - useradd
+  - groupadd
+  - groupdel
+  - su
+  - sudo
+  - visudo
+  - crontab
+  - at
+  - batch
+  - mkswap
+  - iptables
+  - ufw
+  - ip
+
+authorizable:
+  description: "危险但有合法用途的命令，需 authorization_id 放行"
+  commands:
+  - kill
+  - killall
+  - pkill
+  - rm
+  - rmdir
+  - chmod
+  - chown
+
+red_zone:
+  description: "网络/包管理/编排命令，需双签（族长+灵通）"
+  approvers: ["族长", "灵通"]
+  commands:
+  - ssh
+  - scp
+  - rsync
+  - sftp
+  - curl
+  - wget
+  - nc
+  - ncat
+  - nmap
+  - dig
+  - nslookup
+  - host
+  - traceroute
+  - ping
+  - apt
+  - apt-get
+  - dnf
+  - yum
+  - pacman
+  - apk
+  - npm
+  - npx
+  - pip
+  - pip3
+  - docker
+  - podman
+  - kubectl
+  - helm
+  - terraform
+  - ansible
+
+patterns:
+  description: "危险模式 - 对完整命令字符串做正则/字面匹配"
+  items:
+  - pattern: "rm -rf /"
+    type: literal
+    category: blacklist
+    reason: "根目录递归删除"
