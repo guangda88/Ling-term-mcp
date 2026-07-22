@@ -48,16 +48,25 @@ function getRegistryPath(): string {
  */
 function parseRegistry(content: string): SecurityRegistry {
   const lines = content.split('\n');
-  const registry: any = {
-    whitelist: { commands: [] },
-    blacklist: { commands: [] },
-    authorizable: { commands: [] },
-    red_zone: { commands: [], approvers: [] },
-    patterns: { items: [] },
+  const registry: SecurityRegistry = {
+    version: 0,
+    updated: '',
+    source: '',
+    whitelist: { description: '', commands: [] },
+    blacklist: { description: '', commands: [] },
+    authorizable: { description: '', commands: [] },
+    red_zone: { description: '', approvers: [], commands: [] },
+    patterns: { description: '', items: [] },
   };
 
-  let currentSection: string | null = null;
-  let currentPattern: any = null;
+  type SectionKey =
+    | 'whitelist'
+    | 'blacklist'
+    | 'authorizable'
+    | 'red_zone'
+    | 'patterns';
+  let currentSection: SectionKey | null = null;
+  let currentPattern: RegistryPattern | null = null;
   let inPatterns = false;
 
   for (const rawLine of lines) {
@@ -81,7 +90,7 @@ function parseRegistry(content: string): SecurityRegistry {
 
     // Section headers
     if (line.endsWith(':') && !line.startsWith('-') && !line.startsWith('  ')) {
-      const section = line.slice(0, -1);
+      const section = line.slice(0, -1) as SectionKey;
       if (
         [
           'whitelist',
@@ -107,16 +116,19 @@ function parseRegistry(content: string): SecurityRegistry {
       if (inPatterns) {
         if (currentPattern) {
           if (key === 'pattern') currentPattern.pattern = val;
-          else if (key === 'type') currentPattern.type = val;
-          else if (key === 'category') currentPattern.category = val;
+          else if (key === 'type')
+            currentPattern.type = val as 'literal' | 'regex';
+          else if (key === 'category')
+            currentPattern.category = val as 'blacklist' | 'red_zone';
           else if (key === 'reason') currentPattern.reason = val;
         }
-      } else if (currentSection && registry[currentSection]) {
-        if (key === 'description') {
-          registry[currentSection].description = val;
+      } else if (currentSection) {
+        const section = registry[currentSection];
+        if (key === 'description' && 'description' in section) {
+          section.description = val;
         }
-        if (key === 'approvers') {
-          registry[currentSection].approvers = val
+        if (key === 'approvers' && 'approvers' in section) {
+          section.approvers = val
             .replace(/[[\]"]/g, '')
             .split(',')
             .map((s: string) => s.trim());
@@ -139,21 +151,23 @@ function parseRegistry(content: string): SecurityRegistry {
         if (currentPattern) registry.patterns.items.push(currentPattern);
         currentPattern = {
           pattern: item.replace(/^pattern:\s*/, '').replace(/^"(.*)"$/, '$1'),
+          type: 'literal',
+          category: 'blacklist',
+          reason: '',
         };
       }
-    } else if (
-      currentSection &&
-      registry[currentSection] &&
-      Array.isArray(registry[currentSection].commands)
-    ) {
-      registry[currentSection].commands.push(item);
+    } else if (currentSection) {
+      const section = registry[currentSection];
+      if ('commands' in section && Array.isArray(section.commands)) {
+        section.commands.push(item);
+      }
     }
   }
 
   // Push last pattern if exists
   if (currentPattern) registry.patterns.items.push(currentPattern);
 
-  return registry as SecurityRegistry;
+  return registry;
 }
 
 /**

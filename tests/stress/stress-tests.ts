@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Stress Testing Scenarios
  * Test Ling-term-mcp under heavy load
@@ -220,14 +221,42 @@ export const longRunningScenario = async () => {
 /**
  * Run all stress tests
  */
+interface ConcurrentResult {
+  successful: number;
+  failed: number;
+  avgDuration: number;
+  duration: number;
+}
+
+interface SequentialResult extends ConcurrentResult {
+  maxDuration: number;
+  minDuration: number;
+}
+
+interface MemoryResult {
+  memorySnapshots: number[];
+}
+
+interface LongRunningResult {
+  avgDuration: number;
+  maxDuration: number;
+}
+
+interface StressResults {
+  concurrent100: ConcurrentResult | null;
+  sequential1000: SequentialResult | null;
+  memoryStability: MemoryResult | null;
+  longRunning: LongRunningResult | null;
+}
+
 export const runAllStressTests = async () => {
   console.log('🚀 Starting Stress Testing Suite\n');
 
-  const results = {
-    concurrent100: null as any,
-    sequential1000: null as any,
-    memoryStability: null as any,
-    longRunning: null as any,
+  const results: StressResults = {
+    concurrent100: null,
+    sequential1000: null,
+    memoryStability: null,
+    longRunning: null,
   };
 
   try {

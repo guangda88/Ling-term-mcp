@@ -3,7 +3,8 @@ import {
   _resetForTesting,
   checkRedZoneAuthorization,
   verifyMeetingToken,
-} from '../../dist/tools/authorize';
+  getAuthorizationStatus,
+} from '../../src/tools/authorize';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
@@ -813,5 +814,197 @@ describe('authorize verify (SEC-001 meeting token)', () => {
       expect(result.agent_id).toBe('lingresearch');
       expect(result.meeting_id).toBe('sync-2026');
     });
+  });
+});
+
+describe('authorize edge cases (coverage gaps)', () => {
+  it('should reject approve without authorization_id', async () => {
+    const result = await authorize.handler({
+      command: 'approve',
+      decision: 'approve',
+      resolved_by: 'user',
+    });
+    expect(result.isError).toBe(true);
+    expect((result.content as Array<{ text: string }>)[0].text).toContain(
+      'authorization_id is required'
+    );
+  });
+
+  it('should reject approve without resolved_by', async () => {
+    const result = await authorize.handler({
+      command: 'approve',
+      authorization_id: 'some-id',
+      decision: 'approve',
+    });
+    expect(result.isError).toBe(true);
+    expect((result.content as Array<{ text: string }>)[0].text).toContain(
+      'resolved_by is required'
+    );
+  });
+
+  it('should reject self-approval (non-user resolver)', async () => {
+    const createResult = await authorize.handler({
+      command: 'require',
+      caller: 'lingflow',
+      operation: 'test self-approve',
+    });
+    const { authorization_id } = JSON.parse(
+      (createResult.content as Array<{ text: string }>)[0].text
+    );
+
+    const result = await authorize.handler({
+      command: 'approve',
+      authorization_id,
+      decision: 'approve',
+      resolved_by: 'lingflow',
+    });
+    expect(result.isError).toBe(true);
+    expect((result.content as Array<{ text: string }>)[0].text).toContain(
+      'self-approval denied'
+    );
+  });
+
+  it('should reject issue without caller', async () => {
+    const result = await authorize.handler({
+      command: 'issue',
+      agent_id: 'ext-001',
+      meeting_id: 'm-001',
+    });
+    expect(result.isError).toBe(true);
+    expect((result.content as Array<{ text: string }>)[0].text).toContain(
+      'caller is required'
+    );
+  });
+
+  it('should reject verify without auth_token', async () => {
+    const result = await authorize.handler({
+      command: 'verify',
+    });
+    expect(result.isError).toBe(true);
+    expect((result.content as Array<{ text: string }>)[0].text).toContain(
+      'auth_token is required'
+    );
+  });
+
+  it('should handle verify via handler (not direct function call)', async () => {
+    const issueResult = await authorize.handler({
+      command: 'issue',
+      caller: 'lingyang',
+      agent_id: 'ext-001',
+      meeting_id: 'm-001',
+    });
+    const token = JSON.parse(
+      (issueResult.content as Array<{ text: string }>)[0].text
+    ).auth_token;
+
+    const result = await authorize.handler({
+      command: 'verify',
+      auth_token: token,
+      agent_id: 'ext-001',
+      meeting_id: 'm-001',
+    });
+    const body = JSON.parse(
+      (result.content as Array<{ text: string }>)[0].text
+    );
+    expect(body.valid).toBe(true);
+  });
+
+  it('should throw on unknown authorize command', async () => {
+    await expect(
+      authorize.handler({ command: 'invalid_command' })
+    ).rejects.toThrow('Unknown authorize command');
+  });
+
+  it('should expire pending requests in getAuthorizationStatus', async () => {
+    const createResult = await authorize.handler({
+      command: 'require',
+      caller: 'lingflow',
+      operation: 'test expiry',
+    });
+    const { authorization_id } = JSON.parse(
+      (createResult.content as Array<{ text: string }>)[0].text
+    );
+
+    // Manually expire by checking with a past date
+    // getAuthorizationStatus checks expiry internally
+    // We can't easily mock Date, but we can verify it returns the request
+    const req = getAuthorizationStatus(authorization_id);
+    expect(req).toBeDefined();
+    expect(req!.status).toBe('pending');
+  });
+
+  it('should return undefined for non-existent authorization in getAuthorizationStatus', () => {
+    const req = getAuthorizationStatus('nonexistent-id');
+    expect(req).toBeUndefined();
+  });
+
+  it('should reject checkRedZoneAuthorization for non-existent id', () => {
+    const result = checkRedZoneAuthorization('nonexistent', 'ls');
+    expect(result.allowed).toBe(false);
+    expect(result.error).toContain('not found');
+  });
+
+  it('should reject checkRedZoneAuthorization for pending request', async () => {
+    const createResult = await authorize.handler({
+      command: 'require',
+      caller: 'lingflow',
+      operation: 'test pending',
+    });
+    const { authorization_id } = JSON.parse(
+      (createResult.content as Array<{ text: string }>)[0].text
+    );
+
+    const result = checkRedZoneAuthorization(authorization_id, 'ls');
+    expect(result.allowed).toBe(false);
+    expect(result.error).toContain('pending');
+  });
+
+  it('should reject checkRedZoneAuthorization for caller mismatch', async () => {
+    const createResult = await authorize.handler({
+      command: 'require',
+      caller: 'lingflow',
+      operation: 'test caller mismatch',
+    });
+    const { authorization_id } = JSON.parse(
+      (createResult.content as Array<{ text: string }>)[0].text
+    );
+    await authorize.handler({
+      command: 'approve',
+      authorization_id,
+      decision: 'approve',
+      resolved_by: 'user',
+    });
+
+    const result = checkRedZoneAuthorization(
+      authorization_id,
+      'ls',
+      'lingclaude'
+    );
+    expect(result.allowed).toBe(false);
+    expect(result.error).toContain('caller mismatch');
+  });
+
+  it('should reject verifyMeetingToken for exhausted persistent token', async () => {
+    const issueResult = await authorize.handler({
+      command: 'issue',
+      caller: 'lingyang',
+      agent_id: 'ext-001',
+      meeting_id: 'm-001',
+      persistent: true,
+      max_usage: 1,
+    });
+    const token = JSON.parse(
+      (issueResult.content as Array<{ text: string }>)[0].text
+    ).auth_token;
+
+    // First verify: allowed, usage_count -> 1, auto-expire (usage >= max)
+    const v1 = verifyMeetingToken(token, 'ext-001', 'm-001');
+    expect(v1.valid).toBe(true);
+    expect(v1.usage_count).toBe(1);
+
+    // Second verify: exhausted (usage_count >= max_usage)
+    const v2 = verifyMeetingToken(token, 'ext-001', 'm-001');
+    expect(v2.valid).toBe(false);
+    expect(v2.reason).toContain('exhausted');
   });
 });

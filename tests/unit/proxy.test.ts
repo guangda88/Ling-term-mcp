@@ -40,6 +40,7 @@ afterAll(() => {
 });
 
 beforeEach(() => {
+  setBackendsPath(TMP_CONFIG);
   _resetForTesting();
 });
 
@@ -213,5 +214,236 @@ describe('proxy — real backends.json', () => {
     setBackendsPath(path.join(__dirname, '..', '..', 'backends.json'));
     const names = getBackendNames();
     expect(names.length).toBe(9);
+  });
+});
+
+// === ensureBackend / spawnBackend / callBackend tests ===
+
+import {
+  ensureBackend,
+  callBackend,
+  initializeBackend,
+  listBackendTools,
+  callBackendTool,
+  shutdownAll,
+} from '../../src/proxy/manager';
+
+const RESPONDER_SCRIPT = '/tmp/mock_mcp_responder.js';
+const ERROR_SCRIPT = '/tmp/mock_mcp_error.js';
+const BADMSG_SCRIPT = '/tmp/mock_mcp_badmsg.js';
+
+function makeMockConfig(scriptPath: string) {
+  return {
+    backends: {
+      mock: {
+        command: 'node',
+        args: [scriptPath],
+        cwd: '/tmp',
+        description: 'Mock MCP backend',
+      },
+    },
+  };
+}
+
+describe('proxy/manager - ensureBackend', () => {
+  it('should spawn a backend process', () => {
+    const state = ensureBackend('testecho');
+    expect(state.process).not.toBeNull();
+    expect(state.process!.killed).toBe(false);
+    expect(state.initialized).toBe(false);
+  });
+
+  it('should reuse existing process on second call', () => {
+    const state1 = ensureBackend('testecho');
+    const proc1 = state1.process;
+    const state2 = ensureBackend('testecho');
+    expect(state2.process).toBe(proc1);
+  });
+
+  it('should throw for unknown backend name', () => {
+    expect(() => ensureBackend('nonexistent_backend')).toThrow(
+      'Unknown backend'
+    );
+  });
+});
+
+describe('proxy/manager - callBackend', () => {
+  it('should send a request and receive a response', async () => {
+    const mockConfig = '/tmp/test_backends_resp.json';
+    fs.writeFileSync(
+      mockConfig,
+      JSON.stringify(makeMockConfig(RESPONDER_SCRIPT))
+    );
+    setBackendsPath(mockConfig);
+    _resetForTesting();
+
+    try {
+      const result = await callBackend('mock', 'test/method', { foo: 'bar' });
+      expect(result).toEqual({ echoed: 'test/method' });
+    } finally {
+      _resetForTesting();
+      setBackendsPath(TMP_CONFIG);
+      if (fs.existsSync(mockConfig)) fs.unlinkSync(mockConfig);
+    }
+  });
+
+  it('should reject on error response from backend', async () => {
+    const mockConfig = '/tmp/test_backends_err.json';
+    fs.writeFileSync(mockConfig, JSON.stringify(makeMockConfig(ERROR_SCRIPT)));
+    setBackendsPath(mockConfig);
+    _resetForTesting();
+
+    try {
+      await expect(callBackend('mock', 'test/method')).rejects.toThrow(
+        'Method not found'
+      );
+    } finally {
+      _resetForTesting();
+      setBackendsPath(TMP_CONFIG);
+      if (fs.existsSync(mockConfig)) fs.unlinkSync(mockConfig);
+    }
+  });
+});
+
+describe('proxy/manager - initializeBackend', () => {
+  it('should initialize a backend successfully', async () => {
+    const mockConfig = '/tmp/test_backends_init.json';
+    fs.writeFileSync(
+      mockConfig,
+      JSON.stringify(makeMockConfig(RESPONDER_SCRIPT))
+    );
+    setBackendsPath(mockConfig);
+    _resetForTesting();
+
+    try {
+      const ok = await initializeBackend('mock');
+      expect(ok).toBe(true);
+    } finally {
+      _resetForTesting();
+      setBackendsPath(TMP_CONFIG);
+      if (fs.existsSync(mockConfig)) fs.unlinkSync(mockConfig);
+    }
+  });
+
+  it('should return true if already initialized', async () => {
+    const mockConfig = '/tmp/test_backends_init2.json';
+    fs.writeFileSync(
+      mockConfig,
+      JSON.stringify(makeMockConfig(RESPONDER_SCRIPT))
+    );
+    setBackendsPath(mockConfig);
+    _resetForTesting();
+
+    try {
+      const ok1 = await initializeBackend('mock');
+      expect(ok1).toBe(true);
+      const ok2 = await initializeBackend('mock');
+      expect(ok2).toBe(true);
+    } finally {
+      _resetForTesting();
+      setBackendsPath(TMP_CONFIG);
+      if (fs.existsSync(mockConfig)) fs.unlinkSync(mockConfig);
+    }
+  });
+
+  it('should return false if backend fails to initialize', async () => {
+    const failConfig = {
+      backends: {
+        mock: {
+          command: 'node',
+          args: ['-e', 'process.exit(1)'],
+          cwd: '/tmp',
+          description: 'Failing backend',
+        },
+      },
+    };
+    const mockConfig = '/tmp/test_backends_fail.json';
+    fs.writeFileSync(mockConfig, JSON.stringify(failConfig));
+    setBackendsPath(mockConfig);
+    _resetForTesting();
+
+    try {
+      const ok = await initializeBackend('mock');
+      expect(ok).toBe(false);
+    } finally {
+      _resetForTesting();
+      setBackendsPath(TMP_CONFIG);
+      if (fs.existsSync(mockConfig)) fs.unlinkSync(mockConfig);
+    }
+  });
+});
+
+describe('proxy/manager - listBackendTools', () => {
+  it('should list tools from a backend', async () => {
+    const mockConfig = '/tmp/test_backends_tools.json';
+    fs.writeFileSync(
+      mockConfig,
+      JSON.stringify(makeMockConfig(RESPONDER_SCRIPT))
+    );
+    setBackendsPath(mockConfig);
+    _resetForTesting();
+
+    try {
+      const tools = await listBackendTools('mock');
+      expect(tools).toHaveLength(2);
+      expect(tools[0].name).toBe('tool_a');
+      expect(tools[1].name).toBe('tool_b');
+    } finally {
+      _resetForTesting();
+      setBackendsPath(TMP_CONFIG);
+      if (fs.existsSync(mockConfig)) fs.unlinkSync(mockConfig);
+    }
+  });
+});
+
+describe('proxy/manager - callBackendTool', () => {
+  it('should call a tool on a backend', async () => {
+    const mockConfig = '/tmp/test_backends_call.json';
+    fs.writeFileSync(
+      mockConfig,
+      JSON.stringify(makeMockConfig(RESPONDER_SCRIPT))
+    );
+    setBackendsPath(mockConfig);
+    _resetForTesting();
+
+    try {
+      const result = await callBackendTool('mock', 'some_tool', {
+        arg: 'value',
+      });
+      expect(result).toEqual({
+        content: [{ type: 'text', text: 'tool result' }],
+      });
+    } finally {
+      _resetForTesting();
+      setBackendsPath(TMP_CONFIG);
+      if (fs.existsSync(mockConfig)) fs.unlinkSync(mockConfig);
+    }
+  });
+});
+
+describe('proxy/manager - shutdownAll', () => {
+  it('should shut down all backends gracefully', () => {
+    ensureBackend('testecho');
+    shutdownAll();
+    const status = getBackendStatus('testecho');
+    expect(status.running).toBe(false);
+  });
+});
+
+describe('proxy/manager - drainMessages edge cases', () => {
+  it('should handle unparseable messages from backend', async () => {
+    const mockConfig = '/tmp/test_backends_badmsg.json';
+    fs.writeFileSync(mockConfig, JSON.stringify(makeMockConfig(BADMSG_SCRIPT)));
+    setBackendsPath(mockConfig);
+    _resetForTesting();
+
+    try {
+      const result = await callBackend('mock', 'test/method');
+      expect(result).toEqual({ ok: true });
+    } finally {
+      _resetForTesting();
+      setBackendsPath(TMP_CONFIG);
+      if (fs.existsSync(mockConfig)) fs.unlinkSync(mockConfig);
+    }
   });
 });

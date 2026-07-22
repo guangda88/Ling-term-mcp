@@ -99,7 +99,16 @@ describe('PerformanceMonitor', () => {
 
   describe('getStats', () => {
     it('should calculate correct statistics', () => {
-      const stats = (monitor as any).getStats([10, 20, 30, 40, 50]);
+      const stats = (
+        monitor as unknown as {
+          getStats: (arr: number[]) => {
+            avg: number;
+            min: number;
+            max: number;
+            p50: number;
+          };
+        }
+      ).getStats([10, 20, 30, 40, 50]);
 
       expect(stats.avg).toBe(30);
       expect(stats.min).toBe(10);
@@ -108,7 +117,16 @@ describe('PerformanceMonitor', () => {
     });
 
     it('should handle empty array', () => {
-      const stats = (monitor as any).getStats([]);
+      const stats = (
+        monitor as unknown as {
+          getStats: (arr: number[]) => {
+            avg: number;
+            min: number;
+            max: number;
+            p50: number;
+          };
+        }
+      ).getStats([]);
 
       expect(stats.avg).toBe(0);
       expect(stats.p50).toBe(0);

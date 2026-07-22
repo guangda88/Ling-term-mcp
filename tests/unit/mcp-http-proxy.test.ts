@@ -47,13 +47,26 @@ function mockReq(
   req.url = opts.url || '/health';
   req.method = opts.method || 'GET';
   req.headers = opts.headers || {};
-  (req.socket as any) = { remoteAddress: opts.remoteAddress || '127.0.0.1' };
+  (req.socket as unknown as { remoteAddress: string }) = {
+    remoteAddress: opts.remoteAddress || '127.0.0.1',
+  };
   return req;
 }
 
-function mockRes() {
+interface MockServerResponse {
+  writeHead: jest.Mock;
+  setHeader: jest.Mock;
+  end: jest.Mock;
+  on: jest.Mock;
+  emit: jest.Mock;
+  destroy: jest.Mock;
+  headersSent: boolean;
+  writableEnded: boolean;
+}
+
+function mockRes(): { res: ServerResponse; headers: Record<string, string> } {
   const headers: Record<string, string> = {};
-  const listeners: Record<string, Array<(...args: any[]) => void>> = {};
+  const listeners: Record<string, Array<(...args: unknown[]) => void>> = {};
 
   const res = {
     writeHead: jest.fn((_code: number, hdrs?: Record<string, string>) => {
@@ -65,11 +78,11 @@ function mockRes() {
     end: jest.fn(),
     headersSent: false,
     writableEnded: false,
-    on: jest.fn((event: string, handler: (...args: any[]) => void) => {
+    on: jest.fn((event: string, handler: (...args: unknown[]) => void) => {
       if (!listeners[event]) listeners[event] = [];
       listeners[event].push(handler);
     }),
-    emit: jest.fn((event: string, ...args: any[]) => {
+    emit: jest.fn((event: string, ...args: unknown[]) => {
       (listeners[event] || []).forEach((h) => h(...args));
     }),
     destroy: jest.fn(),
@@ -87,7 +100,7 @@ async function initProxy(config: {
   capturedHandler = null;
   if (cleanup) cleanup();
   cleanup = await startHTTPProxy({
-    createServer: () => ({ connect: jest.fn() }) as any,
+    createServer: () => ({ connect: jest.fn() }) as unknown as never,
     name: 'test',
     port: 19999,
     host: '127.0.0.1',
@@ -111,17 +124,21 @@ async function request(opts: {
 
   await capturedHandler!(req, res);
 
+  const mockServletResponse = res as unknown as MockServerResponse;
   const body =
-    (res as any).end.mock.calls.length > 0
-      ? (res as any).end.mock.calls[0][0] || ''
+    mockServletResponse.end.mock.calls.length > 0
+      ? (mockServletResponse.end.mock.calls[0][0] as string) || ''
       : '';
   const status =
-    (res as any).writeHead.mock.calls.length > 0
-      ? (res as any).writeHead.mock.calls[0][0]
+    mockServletResponse.writeHead.mock.calls.length > 0
+      ? (mockServletResponse.writeHead.mock.calls[0][0] as number)
       : 0;
   const respHeaders =
-    (res as any).writeHead.mock.calls.length > 0
-      ? (res as any).writeHead.mock.calls[0][1] || {}
+    mockServletResponse.writeHead.mock.calls.length > 0
+      ? (mockServletResponse.writeHead.mock.calls[0][1] as Record<
+          string,
+          string
+        >) || {}
       : {};
   return { status, body, headers: { ...headers, ...respHeaders } };
 }
@@ -331,7 +348,9 @@ describe('MCP HTTP Proxy Middleware', () => {
 
       await capturedHandler!(req, res);
 
-      expect((res as any).writeHead.mock.calls[0]?.[0]).toBe(500);
+      expect(
+        (res as unknown as MockServerResponse).writeHead.mock.calls[0]?.[0]
+      ).toBe(500);
     });
 
     it('cleans up connection after handleRequest completes', async () => {
@@ -350,7 +369,7 @@ describe('MCP HTTP Proxy Middleware', () => {
       });
 
       await capturedHandler!(req, res);
-      (res as any).emit('close');
+      (res as unknown as MockServerResponse).emit('close');
       await new Promise((r) => setTimeout(r, 10));
 
       expect(mockTransportClose).toHaveBeenCalled();
@@ -364,7 +383,7 @@ describe('MCP HTTP Proxy Middleware', () => {
           ({
             connect: jest.fn(),
             close: jest.fn().mockResolvedValue(undefined),
-          }) as any,
+          }) as unknown as never,
         name: 'test',
         port: 19999,
         host: '127.0.0.1',
@@ -395,7 +414,7 @@ describe('MCP HTTP Proxy Middleware', () => {
 
       // Timeout triggers cleanup via timer, not res.on('close')
       await new Promise((r) => setTimeout(r, 80));
-      expect((res as any).end).toHaveBeenCalled();
+      expect((res as unknown as MockServerResponse).end).toHaveBeenCalled();
     });
   });
 

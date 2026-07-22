@@ -12,7 +12,14 @@ const TSX = './node_modules/.bin/tsx';
 const PORT = 9876;
 const AUTH_TOKEN = 'e2e-test-token';
 
-function parseSse(raw: string): any {
+interface ParsedSse {
+  id?: number;
+  result?: { tools?: { name: string }[] };
+  error?: { message?: string };
+  [key: string]: unknown;
+}
+
+function parseSse(raw: string): ParsedSse {
   const match = raw.match(/^data:\s*(.+)$/m);
   if (match) {
     try {
@@ -33,7 +40,7 @@ function httpRequest(
   method: string,
   body?: object,
   auth?: string
-): Promise<{ status: number; data: any }> {
+): Promise<{ status: number; data: ParsedSse }> {
   return new Promise((resolve, reject) => {
     const payload = body ? JSON.stringify(body) : '';
     const options: http.RequestOptions = {
@@ -127,7 +134,9 @@ describe('E2E: MCP HTTP Proxy', () => {
     );
     assert.strictEqual(status, 200, `tools/list status should be 200`);
     assert.strictEqual(data.id, 1);
-    const toolNames = (data.result?.tools || []).map((t: any) => t.name);
+    const toolNames = (data.result?.tools || []).map(
+      (t: { name: string }) => t.name
+    );
     assert.ok(
       toolNames.includes('execute_command'),
       `Should include execute_command, got: ${toolNames.join(', ')}`
