@@ -25,6 +25,7 @@ export interface DecisionRecord {
   actual_outcome_hash: string;
   success: boolean;
   session_id: string;
+  trace_id?: string;
   source_trace?: SourceTrace[];
 }
 
