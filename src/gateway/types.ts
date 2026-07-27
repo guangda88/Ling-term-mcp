@@ -159,3 +159,18 @@ export interface RedZoneCheckResponse {
   score?: number;
   category?: string;
 }
+
+// AI-06: Sub-agent transcript push endpoint
+export interface TranscriptPushRequest {
+  sub_agent: string;
+  meeting_id?: string;
+  transcript: string;
+  source: string;
+  priority?: 'low' | 'normal' | 'high' | 'critical';
+}
+
+export interface TranscriptPushResponse {
+  accepted: boolean;
+  transcript_id: string;
+  error?: string;
+}

@@ -1,0 +1,27 @@
+[Unit]
+Description=Ling-term-mcp HTTP proxy — lingxi MCP server on port 9529 (instance A)
+After=network.target
+
+[Service]
+Type=simple
+User=ai
+WorkingDirectory=/home/ai/lingxi
+ExecStart=/usr/bin/node /home/ai/lingxi/dist/cli.js http
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/ai/lingxi/logs/http-a.log
+StandardError=append:/home/ai/lingxi/logs/http-a.log
+Environment=NODE_ENV=production
+Environment=LING_TERM_HTTP_PORT=9529
+Environment=LING_TERM_HTTP_HOST=127.0.0.1
+Environment=LOG_DIR=/home/ai/lingxi/logs
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/ai/lingxi/logs /home/ai/lingxi/.crush /home/ai/lingxi/.ling-term-mcp
+
+[Install]
+WantedBy=multi-user.target

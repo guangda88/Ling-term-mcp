@@ -38,6 +38,12 @@ export interface BackendState {
 const INIT_TIMEOUT_MS = 15_000;
 const CALL_TIMEOUT_MS = 120_000;
 const MAX_RESTARTS = 5;
+// Newly spawned stdio MCP servers (e.g. fastmcp) drop bytes written to
+// stdin before their event loop starts consuming it. Delay the first
+// write to give the child time to become ready.
+const FIRST_WRITE_DELAY_MS = 500;
+const INIT_ATTEMPTS = 3;
+const INIT_RETRY_DELAY_MS = 800;
 
 let backendsPath: string | null = null;
 
@@ -239,17 +245,28 @@ function handleMessage(
 
 let nextRequestId = 1;
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 /**
  * Send a JSON-RPC request to a backend and await the response.
+ * @param delayFirstWriteMs if >0, wait this long after ensuring the backend
+ *   before writing; used by initialize to avoid the spawn-time stdin race.
  */
 export async function callBackend(
   name: string,
   method: string,
-  params?: unknown
+  params?: unknown,
+  delayFirstWriteMs = 0
 ): Promise<unknown> {
   const state = ensureBackend(name);
   if (!state.process || !state.process.stdin) {
     throw new Error(`Backend '${name}' is not running`);
+  }
+
+  if (delayFirstWriteMs > 0) {
+    await sleep(delayFirstWriteMs);
   }
 
   const id = nextRequestId++;
@@ -293,13 +310,20 @@ export async function initializeBackend(name: string): Promise<boolean> {
   const state = ensureBackend(name);
   if (state.initialized) return true;
 
-  try {
-    const result = (await Promise.race([
-      callBackend(name, 'initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'lingxi-proxy', version: '1.0.0' },
-      }),
+  const attemptInit = async (
+    delayMs: number
+  ): Promise<Record<string, unknown>> => {
+    return (await Promise.race([
+      callBackend(
+        name,
+        'initialize',
+        {
+          protocolVersion: '2024-11-05',
+          capabilities: {},
+          clientInfo: { name: 'lingxi-proxy', version: '1.0.0' },
+        },
+        delayMs
+      ),
       new Promise((_, reject) =>
         setTimeout(
           () => reject(new Error(`[${name}] Init timeout`)),
@@ -307,29 +331,49 @@ export async function initializeBackend(name: string): Promise<boolean> {
         )
       ),
     ])) as Record<string, unknown>;
+  };
 
-    // Send initialized notification
-    if (state.process && state.process.stdin) {
-      state.process.stdin.write(
-        JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'notifications/initialized',
-        }) + '\n'
+  let lastErr: string = 'unknown';
+  for (let attempt = 1; attempt <= INIT_ATTEMPTS; attempt++) {
+    try {
+      // First attempt waits for the child to finish its startup banner and
+      // be ready to read stdin. Retries skip the delay because the process
+      // is already up.
+      const delay = attempt === 1 ? FIRST_WRITE_DELAY_MS : 0;
+      const result = await attemptInit(delay);
+
+      // Send initialized notification
+      if (state.process && state.process.stdin) {
+        state.process.stdin.write(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'notifications/initialized',
+          }) + '\n'
+        );
+      }
+
+      state.initialized = true;
+      state.restartCount = 0;
+      console.error(
+        `[proxy:${name}] Initialized: ${JSON.stringify(result.serverInfo || result)}`
       );
+      return true;
+    } catch (err) {
+      lastErr = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[proxy:${name}] Init attempt ${attempt}/${INIT_ATTEMPTS} failed: ${lastErr}`
+      );
+      if (attempt < INIT_ATTEMPTS) {
+        await sleep(INIT_RETRY_DELAY_MS);
+      }
     }
-
-    state.initialized = true;
-    state.restartCount = 0;
-    console.error(
-      `[proxy:${name}] Initialized: ${JSON.stringify(result.serverInfo || result)}`
-    );
-    return true;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    state.lastError = msg;
-    console.error(`[proxy:${name}] Init failed: ${msg}`);
-    return false;
   }
+
+  state.lastError = lastErr;
+  console.error(
+    `[proxy:${name}] Init failed after ${INIT_ATTEMPTS} attempts: ${lastErr}`
+  );
+  return false;
 }
 
 /**

@@ -1,0 +1,28 @@
+[Unit]
+Description=Lingxi gateway server — sub-agent transcript push endpoint on port 9532
+After=network.target lingxi-http.service
+Wants=lingxi-http.service
+
+[Service]
+Type=simple
+User=ai
+WorkingDirectory=/home/ai/lingxi
+ExecStart=/usr/bin/node /home/ai/lingxi/dist/cli.js gateway
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/ai/lingxi/logs/gateway.log
+StandardError=append:/home/ai/lingxi/logs/gateway.log
+Environment=NODE_ENV=production
+Environment=LING_GATEWAY_PORT=9532
+Environment=LING_GATEWAY_HOST=127.0.0.1
+Environment=LOG_DIR=/home/ai/lingxi/logs
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/ai/lingxi/logs /home/ai/lingxi/.crush /home/ai/lingxi/.ling-term-mcp
+
+[Install]
+WantedBy=multi-user.target

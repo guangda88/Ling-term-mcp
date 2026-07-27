@@ -232,6 +232,80 @@ const RESPONDER_SCRIPT = '/tmp/mock_mcp_responder.js';
 const ERROR_SCRIPT = '/tmp/mock_mcp_error.js';
 const BADMSG_SCRIPT = '/tmp/mock_mcp_badmsg.js';
 
+beforeAll(() => {
+  fs.writeFileSync(
+    RESPONDER_SCRIPT,
+    `const rl = require('readline').createInterface({ input: process.stdin });
+rl.on('line', (line) => {
+  try {
+    const msg = JSON.parse(line);
+    if (msg.method === 'initialize') {
+      process.stdout.write(JSON.stringify({
+        jsonrpc: '2.0', id: msg.id,
+        result: { protocolVersion: '2024-11-05', capabilities: {}, serverInfo: { name: 'mock', version: '1.0' } }
+      }) + '\\n');
+    } else if (msg.method === 'tools/list') {
+      process.stdout.write(JSON.stringify({
+        jsonrpc: '2.0', id: msg.id,
+        result: { tools: [{ name: 'tool_a', description: 'a' }, { name: 'tool_b', description: 'b' }] }
+      }) + '\\n');
+    } else if (msg.method === 'tools/call') {
+      process.stdout.write(JSON.stringify({
+        jsonrpc: '2.0', id: msg.id,
+        result: { content: [{ type: 'text', text: 'tool result' }] }
+      }) + '\\n');
+    } else {
+      process.stdout.write(JSON.stringify({
+        jsonrpc: '2.0', id: msg.id,
+        result: { echoed: msg.method }
+      }) + '\\n');
+    }
+  } catch (e) { }
+});`
+  );
+  fs.writeFileSync(
+    ERROR_SCRIPT,
+    `const rl = require('readline').createInterface({ input: process.stdin });
+rl.on('line', (line) => {
+  try {
+    const msg = JSON.parse(line);
+    process.stdout.write(JSON.stringify({
+      jsonrpc: '2.0', id: msg.id,
+      error: { code: -32601, message: 'Method not found' }
+    }) + '\\n');
+  } catch (e) { }
+});`
+  );
+  fs.writeFileSync(
+    BADMSG_SCRIPT,
+    `const rl = require('readline').createInterface({ input: process.stdin });
+rl.on('line', (line) => {
+  try {
+    const msg = JSON.parse(line);
+    if (msg.method === 'initialize') {
+      process.stdout.write(JSON.stringify({
+        jsonrpc: '2.0', id: msg.id,
+        result: { protocolVersion: '2024-11-05', capabilities: {}, serverInfo: { name: 'mock', version: '1.0' } }
+      }) + '\\n');
+    } else {
+      process.stdout.write(JSON.stringify({ ok: true }) + '\\n');
+      process.stdout.write('not a json line\\n');
+      process.stdout.write(JSON.stringify({
+        jsonrpc: '2.0', id: msg.id,
+        result: { ok: true }
+      }) + '\\n');
+    }
+  } catch (e) { }
+});`
+  );
+});
+
+afterAll(() => {
+  for (const f of [RESPONDER_SCRIPT, ERROR_SCRIPT, BADMSG_SCRIPT]) {
+    if (fs.existsSync(f)) fs.unlinkSync(f);
+  }
+});
+
 function makeMockConfig(scriptPath: string) {
   return {
     backends: {

@@ -1,4 +1,5 @@
 import { createServer, IncomingMessage, Server, ServerResponse } from 'http';
+import { randomUUID } from 'crypto';
 import { Coordinator } from './coordinator.js';
 import { securityValidator } from '../security/validator.js';
 import type {
@@ -17,6 +18,8 @@ import type {
   NotifyApiRequest,
   NotifyApiResponse,
   RedZoneCheckRequest,
+  TranscriptPushRequest,
+  TranscriptPushResponse,
 } from './types.js';
 import { isKnownMember } from '../security/identity.js';
 import { verifyMeetingToken, authorize } from '../tools/authorize.js';
@@ -271,6 +274,46 @@ export function startGatewayServer(port?: number): Promise<Server> {
         });
         const statusCode = response.decision === 'block' ? 403 : 200;
         sendJSON(res, statusCode, response);
+      } else if (path === '/v1/transcript' && method === 'POST') {
+        const body = await readBody(req);
+        let transcriptReq: TranscriptPushRequest;
+        try {
+          transcriptReq = JSON.parse(body);
+        } catch {
+          sendError(res, 400, 'Invalid JSON');
+          return;
+        }
+        if (!transcriptReq.source || !isKnownMember(transcriptReq.source)) {
+          sendError(
+            res,
+            403,
+            `source '${transcriptReq.source}' is not a registered member`
+          );
+          return;
+        }
+        if (
+          !transcriptReq.transcript ||
+          typeof transcriptReq.transcript !== 'string'
+        ) {
+          sendError(res, 400, 'transcript is required');
+          return;
+        }
+        if (
+          !transcriptReq.sub_agent ||
+          typeof transcriptReq.sub_agent !== 'string'
+        ) {
+          sendError(res, 400, 'sub_agent is required');
+          return;
+        }
+        const transcriptId = randomUUID();
+        console.error(
+          `[gateway:transcript] ${transcriptReq.sub_agent} (${transcriptReq.meeting_id || 'no-meeting'}): ${transcriptReq.transcript.length} chars, id=${transcriptId}`
+        );
+        const response: TranscriptPushResponse = {
+          accepted: true,
+          transcript_id: transcriptId,
+        };
+        sendJSON(res, 200, response);
       } else {
         sendError(res, 404, 'Not found');
       }
