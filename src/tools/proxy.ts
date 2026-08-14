@@ -13,10 +13,26 @@ import {
   getBackendNames,
   getAllBackendStatuses,
   getBackendStatus,
+  getBackendError,
 } from '../proxy/manager.js';
 
 function json(data: unknown) {
   return JSON.stringify(data, null, 2);
+}
+
+function textResponse(text: string) {
+  return { content: [{ type: 'text' as const, text }] };
+}
+
+function errorResponse(message: string) {
+  return {
+    content: [{ type: 'text' as const, text: `Error: ${message}` }],
+    isError: true,
+  };
+}
+
+function errorMessage(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
 }
 
 export const proxy = {
@@ -68,20 +84,10 @@ export const proxy = {
     switch (command) {
       case 'call': {
         if (!backend || typeof backend !== 'string') {
-          return {
-            content: [
-              { type: 'text' as const, text: 'Error: backend is required' },
-            ],
-            isError: true,
-          };
+          return errorResponse('backend is required');
         }
         if (!tool || typeof tool !== 'string') {
-          return {
-            content: [
-              { type: 'text' as const, text: 'Error: tool is required' },
-            ],
-            isError: true,
-          };
+          return errorResponse('tool is required');
         }
 
         try {
@@ -100,20 +106,11 @@ export const proxy = {
             };
           }
 
-          return {
-            content: [{ type: 'text' as const, text: json(result) }],
-          };
+          return textResponse(json(result));
         } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `Error calling ${backend}.${tool}: ${msg}`,
-              },
-            ],
-            isError: true,
-          };
+          return errorResponse(
+            `Error calling ${backend}.${tool}: ${errorMessage(err)}`
+          );
         }
       }
 
@@ -121,88 +118,46 @@ export const proxy = {
         if (backend) {
           try {
             const tools = await listBackendTools(backend);
-            return {
-              content: [
-                {
-                  type: 'text' as const,
-                  text: json({
-                    backend,
-                    tool_count: tools.length,
-                    tools: tools.map((t) => ({
-                      name: t.name,
-                      description: t.description?.slice(0, 200),
-                    })),
-                  }),
-                },
-              ],
-            };
+            return textResponse(
+              json({
+                backend,
+                tool_count: tools.length,
+                tools: tools.map((t) => ({
+                  name: t.name,
+                  description: t.description?.slice(0, 200),
+                })),
+              })
+            );
           } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            return {
-              content: [{ type: 'text' as const, text: `Error: ${msg}` }],
-              isError: true,
-            };
+            return errorResponse(errorMessage(err));
           }
         }
 
-        const names = getBackendNames();
-        const results: Array<{
-          backend: string;
-          status: ReturnType<typeof getBackendStatus>;
-          tool_count: number | null;
-          error: string | null;
-        }> = [];
-
-        for (const name of names) {
-          const status = getBackendStatus(name);
-          let toolCount: number | null = null;
-          let error: string | null = null;
-
-          try {
-            const tools = await listBackendTools(name);
-            toolCount = tools.length;
-          } catch (err) {
-            error = err instanceof Error ? err.message : String(err);
-          }
-
-          results.push({
-            backend: name,
-            status,
-            tool_count: toolCount,
-            error,
-          });
-        }
-
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: json({
-                total_backends: results.length,
-                backends: results,
-                usage:
-                  'Use proxy command "call" to invoke a specific tool on a backend.',
-              }),
-            },
-          ],
-        };
+        return textResponse(
+          json({
+            total_backends: getBackendNames().length,
+            backends: getBackendNames().map((name) => ({
+              backend: name,
+              status: getBackendStatus(name),
+              tool_count: null as number | null,
+              error: getBackendError(name),
+            })),
+            usage:
+              'Use proxy command "call" to invoke a specific tool on a backend.',
+          })
+        );
       }
 
       case 'status': {
         const statuses = getAllBackendStatuses();
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: json({
-                total: statuses.length,
-                running: statuses.filter((s) => s.running).length,
-                initialized: statuses.filter((s) => s.initialized).length,
-                backends: statuses,
-              }),
-            },
-          ],
-        };
+        return textResponse(
+          json({
+            total: statuses.length,
+            running: statuses.filter((s) => s.running).length,
+            initialized: statuses.filter((s) => s.initialized).length,
+            backends: statuses,
+          })
+        );
       }
 
       default:

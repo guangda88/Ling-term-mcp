@@ -15,9 +15,10 @@ describe('identity registry', () => {
     expect(LING_FAMILY_MEMBERS.length).toBe(12);
   });
 
-  it('should have 1 infrastructure service', () => {
-    expect(KNOWN_INFRASTRUCTURE.length).toBe(1);
+  it('should have 2 infrastructure services', () => {
+    expect(KNOWN_INFRASTRUCTURE.length).toBe(2);
     expect(KNOWN_INFRASTRUCTURE[0].englishName).toBe('zhibridge');
+    expect(KNOWN_INFRASTRUCTURE[1].englishName).toBe('atomcode');
   });
 
   it('should recognize all known members', () => {
@@ -34,6 +35,7 @@ describe('identity registry', () => {
       'lingminopt',
       'lingyang',
       'zhibridge',
+      'atomcode',
       'lingcreate',
     ];
     for (const name of known) {

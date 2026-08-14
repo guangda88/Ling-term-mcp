@@ -17,6 +17,10 @@ import { governance } from './tools/list_governance.js';
 import { proxy } from './tools/proxy.js';
 import { visibleState } from './tools/visible_state.js';
 import { infoDelta } from './tools/info_delta.js';
+import {
+  distributeCallerSecret,
+  readCallerSignature,
+} from './tools/caller_secret.js';
 import { startFileGuardian } from './audit/file_guardian.js';
 import {
   pollMessages,
@@ -72,6 +76,8 @@ export function createServer(): Server {
         proxy.definition,
         visibleState.definition,
         infoDelta.definition,
+        distributeCallerSecret.definition,
+        readCallerSignature.definition,
         pollMessages.definition,
         postReply.definition,
         openThread.definition,
@@ -112,6 +118,10 @@ export function createServer(): Server {
           return await visibleState.handler(args);
         case 'info_delta':
           return await infoDelta.handler(args);
+        case 'distribute_caller_secret':
+          return await distributeCallerSecret.handler(args);
+        case 'read_caller_signature':
+          return await readCallerSignature.handler(args);
         case 'poll_messages':
           return await pollMessages.handler(args);
         case 'post_reply':

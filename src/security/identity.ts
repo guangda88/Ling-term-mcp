@@ -94,6 +94,12 @@ export const KNOWN_INFRASTRUCTURE: readonly LingMember[] = [
     directory: '/home/ai/zhibridge',
     role: '跨平台通信桥梁（灵通+管辖，非灵族成员）',
   },
+  {
+    name: 'AtomCode',
+    englishName: 'atomcode',
+    directory: '/home/ai/atomcode',
+    role: 'AI 编程助手（正式工具身份）',
+  },
 ] as const;
 
 const MEMBER_SET: ReadonlySet<string> = new Set(
