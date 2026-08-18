@@ -26,6 +26,19 @@ describe('isToolVisible', () => {
     expect(isToolVisible('visible_state', 'webui_user')).toBe(true);
   });
 
+  it('atomcode 降级：admin 域不可见但 member 域保留（灵克 review 185082）', () => {
+    expect(isToolVisible('authorize', 'atomcode')).toBe(false);
+    expect(isToolVisible('governance', 'atomcode')).toBe(false);
+    expect(isToolVisible('read_caller_signature', 'atomcode')).toBe(true);
+  });
+
+  it('lingflow_plus 移除：admin 域不可见（议题8 已合并撤销）', () => {
+    expect(isToolVisible('authorize', 'lingflow_plus')).toBe(false);
+    expect(isToolVisible('distribute_caller_secret', 'lingflow_plus')).toBe(
+      true
+    );
+  });
+
   it("'member' 域工具仅已知成员可见", () => {
     expect(isToolVisible('proxy', undefined)).toBe(false);
     expect(isToolVisible('distribute_caller_secret', undefined)).toBe(false);
@@ -68,10 +81,10 @@ describe('getCallerFromClientInfo', () => {
     expect(getCallerFromClientInfo('crush (lingxi)')).toBe('lingxi');
   });
 
-  it('lingflow_plus 优先于 lingflow（长度倒序）', () => {
-    expect(getCallerFromClientInfo('lingflow_plus-client')).toBe(
-      'lingflow_plus'
-    );
+  it('lingflow_plus 已从治理名单移除，不再识别（议题8 合并撤销）', () => {
+    // lingflow_plus 不再是 ADMIN_CALLERS 成员；前缀锚定也不该让它
+    // 被 lingflow 误命中（'lingflow_plus-client' 不以 'lingflow-' 开头）
+    expect(getCallerFromClientInfo('lingflow_plus-client')).toBeUndefined();
   });
 
   it('未知 client 返回 undefined', () => {

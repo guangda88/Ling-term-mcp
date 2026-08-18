@@ -17,6 +17,7 @@ import {
   truncateOutput,
 } from '../common/command_utils.js';
 import { sanitizeOutput } from '../middleware/output_sanitizer.js';
+import { classifyFailure } from '../common/result_classifier.js';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -121,11 +122,17 @@ export const commandExecutor: ForwardFn = async (ctx) => {
       signal?: string;
     };
     const durationMs = Date.now() - startMs;
+    const errStderr = sanitizeOutput(
+      truncateOutput(err.stderr || String(error))
+    );
+    const exitCode = err.killed ? -1 : err.code === 'ENOENT' ? 1 : 1;
     ctx.result = {
       stdout: sanitizeOutput(truncateOutput(err.stdout || '')),
-      stderr: sanitizeOutput(truncateOutput(err.stderr || String(error))),
-      exit_code: err.killed ? -1 : err.code === 'ENOENT' ? 1 : 1,
+      stderr: errStderr,
+      exit_code: exitCode,
       duration_ms: durationMs,
+      failure_class:
+        exitCode === -1 ? undefined : classifyFailure(errStderr, exitCode),
     };
   }
 

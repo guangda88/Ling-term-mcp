@@ -11,6 +11,17 @@ export interface SourceTrace {
   metadata?: Record<string, unknown>;
 }
 
+export type SandboxMode =
+  | 'read-only'
+  | 'workspace-write'
+  | 'danger-full-access';
+
+const SANDBOX_MODES: readonly string[] = [
+  'read-only',
+  'workspace-write',
+  'danger-full-access',
+];
+
 export interface CommandCtx {
   // Input
   command: string;
@@ -22,6 +33,12 @@ export interface CommandCtx {
   reasoning?: string;
   expected_outcome?: string;
   authorization_id?: string;
+  /**
+   * 文件效应沙箱模式，对齐 dsh `ctx.sandbox` + `SandboxMode`。
+   * 默认 danger-full-access（无沙箱，与现有行为一致）；
+   * read-only / workspace-write 需要沙箱 provider，未安装时 fail-closed。
+   */
+  sandbox_mode?: SandboxMode;
 
   // Validation surrogate (e.g., shell builtin 'export ...' → 'echo ...' for security check only)
   commandForValidation: string;
@@ -37,6 +54,8 @@ export interface CommandCtx {
     stderr: string;
     exit_code: number;
     duration_ms: number;
+    /** 失败归因（对齐 dsh ConfinedArgv 方言语义）：runner_failure / denied / task_failure */
+    failure_class?: import('../common/result_classifier.js').FailureClass;
   };
   sourceTrace?: SourceTrace[];
 
@@ -52,6 +71,13 @@ export interface CommandCtx {
 
 export function createCommandCtx(args: Record<string, unknown>): CommandCtx {
   const command = (args['command'] as string) || '';
+  const rawSandboxMode = args['sandbox_mode'];
+  const sandbox_mode =
+    rawSandboxMode === undefined
+      ? undefined
+      : SANDBOX_MODES.includes(rawSandboxMode as string)
+        ? (rawSandboxMode as SandboxMode)
+        : undefined;
   const ctx: CommandCtx = {
     command,
     commandForValidation: command,
@@ -63,6 +89,7 @@ export function createCommandCtx(args: Record<string, unknown>): CommandCtx {
     reasoning: args['reasoning'] as string | undefined,
     expected_outcome: args['expected_outcome'] as string | undefined,
     authorization_id: args['authorization_id'] as string | undefined,
+    sandbox_mode,
     rejected: false,
     reject(reason: string, category?: string) {
       this.rejected = true;

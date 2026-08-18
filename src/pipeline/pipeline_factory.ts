@@ -13,6 +13,7 @@ import { whitelistCheck } from '../middleware/whitelist.js';
 import { redZoneAuth } from '../middleware/redzone.js';
 import { commandExecutor } from '../middleware/executor.js';
 import { sensitivePathGate } from '../middleware/sensitive_path.js';
+import { sandboxGate } from '../middleware/sandbox.js';
 import { auditLogger } from '../middleware/audit.js';
 import { performanceTracker } from '../middleware/perf.js';
 
@@ -25,6 +26,7 @@ export function buildDefaultPipeline(): CommandPipeline {
     .use(whitelistCheck)
     .use(redZoneAuth)
     .use(sensitivePathGate)
+    .use(sandboxGate)
     .setForward(commandExecutor)
     .onComplete(auditLogger)
     .onComplete(performanceTracker);

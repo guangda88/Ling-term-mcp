@@ -521,8 +521,16 @@ export class SecurityValidator {
    * Check only dangerous patterns and blocked metacharacters,
    * without whitelist/blacklist validation. Used for shell builtins
    * which are not in the whitelist but are safe to execute.
+   *
+   * @param command Full command string to validate.
+   * @param checkMetachars When false, skip shell-metachar blocking.
+   *   Non-shell (execFile) mode passes literal argv elements — metachars
+   *   in args are data, not operators — so only dangerous patterns apply.
    */
-  validateCommandPatternsOnly(command: string): {
+  validateCommandPatternsOnly(
+    command: string,
+    checkMetachars: boolean = true
+  ): {
     valid: boolean;
     error?: string;
   } {
@@ -535,6 +543,7 @@ export class SecurityValidator {
     }
 
     // SEC-02: 与 validateShellCommand 保持一致的扩展元字符检查
+    if (!checkMetachars) return { valid: true };
     const BLOCKED_METACHARS: RegExp[] = [
       /;/,
       /`/,

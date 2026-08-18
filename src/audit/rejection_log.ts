@@ -32,7 +32,8 @@ export interface RejectionRecord {
     | 'cross_member'
     | 'in_workspace_write'
     | 'outside_paths'
-    | 'not_found';
+    | 'not_found'
+    | 'sandbox_unavailable';
   session_id?: string;
   shell?: boolean;
 }

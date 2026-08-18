@@ -547,5 +547,56 @@ describe('execute_command', () => {
       expect(metaContent).toBeDefined();
       expect(metaContent!.text).toContain('category');
     });
+
+    it('should include failure_class in error_meta for failed commands', async () => {
+      const result = await executeCommand.handler({
+        command: 'ls',
+        args: ['/nonexistent_dir_xyz_12345'],
+        caller: 'lingxi',
+      });
+
+      expect(result.isError).toBe(true);
+      const metaContent = result.content.find(
+        (c: { type: string; text: string }) =>
+          c.type === 'text' && c.text.includes('error_meta')
+      );
+      const meta = JSON.parse(
+        metaContent!.text.replace('--- error_meta ---\n', '')
+      );
+      // 'No such file' 方言 → runner_failure，且不可重试
+      expect(meta.failure_class).toBe('runner_failure');
+      expect(meta.retryable).toBe(false);
+    });
+  });
+
+  describe('dual-path parser unification (第0项: 探测/转发语义统一)', () => {
+    it('non-shell mode: dangerous pattern inside args is rejected (probe sees full argv)', async () => {
+      await expect(
+        executeCommand.handler({
+          command: 'echo',
+          args: ['harmless', 'rm -rf /'],
+          caller: 'lingxi',
+        })
+      ).rejects.toThrow(/dangerous pattern|pattern check/i);
+    });
+
+    it('non-shell mode: literal metachars in args are allowed (no shell interpretation)', async () => {
+      const result = await executeCommand.handler({
+        command: 'echo',
+        args: ['a;b', '(c)', '`d`'],
+        caller: 'lingxi',
+      });
+      expect(result.isError).toBeUndefined();
+    });
+
+    it('non-shell mode: shell metachar in arg is data, not an operator', async () => {
+      // execFile 直传 argv，分号/括号只是字面量参数，不应按 shell 语义拦截
+      const result = await executeCommand.handler({
+        command: 'echo',
+        args: ['x;y'],
+        caller: 'lingxi',
+      });
+      expect(result.isError).toBeUndefined();
+    });
   });
 });

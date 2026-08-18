@@ -48,6 +48,12 @@ export const executeCommand = {
           type: 'string',
           description: 'Authorization ID for red-zone commands',
         },
+        sandbox_mode: {
+          type: 'string',
+          enum: ['read-only', 'workspace-write', 'danger-full-access'],
+          description:
+            'File-effect sandbox mode (dsh SandboxMode). Default danger-full-access (no sandbox). read-only/workspace-write require a sandbox provider; fail-closed when none is installed.',
+        },
       },
       required: ['command', 'caller'],
     },
@@ -90,9 +96,16 @@ export const executeCommand = {
 
     // Execution failure: return isError + error_meta
     const errorCategory = r.exit_code === -1 ? 'timeout' : 'execution';
+    // 失败归因（对齐 dsh ConfinedArgv）：runner_failure（命令未跑起来）与
+    // denied（权限拒绝）重试无意义；task_failure / timeout 可重试
+    const failureClass = r.failure_class ?? null;
+    const retryable =
+      errorCategory === 'timeout' ||
+      (failureClass !== 'runner_failure' && failureClass !== 'denied');
     const errorMeta = JSON.stringify({
       category: errorCategory,
-      retryable: errorCategory === 'timeout' || errorCategory === 'execution',
+      failure_class: failureClass,
+      retryable,
       killed: r.exit_code === -1,
       signal: null,
     });

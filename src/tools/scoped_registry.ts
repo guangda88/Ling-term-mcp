@@ -61,12 +61,14 @@ const TOOL_SCOPES: Record<string, ToolScope> = {
 
 /**
  * 治理参与者（可访问 admin 域工具的 caller）。
- * 与灵族治理流程对齐：十二子 + 智桥 + atomcode。
+ * 与灵族治理流程对齐：十二子 + 智桥 + webui_user。
+ * 修订（灵克 review 185082 治理边界）：
+ *   - lingflow_plus 移除：议题8 已合并撤销（8/15 进程归档），身份不再保有 admin 域
+ *   - atomcode 降级：非灵族成员（PRO-053 联署人），admin 域敏感工具对其不可见
  */
 const ADMIN_CALLERS: ReadonlySet<string> = new Set([
   'lingclaude',
   'lingflow',
-  'lingflow_plus',
   'lingmessage',
   'lingan',
   'lingxi',
@@ -78,7 +80,6 @@ const ADMIN_CALLERS: ReadonlySet<string> = new Set([
   'lingtongask',
   'lingcreate',
   'zhibridge',
-  'atomcode',
   'webui_user',
 ]);
 
@@ -113,8 +114,9 @@ export function filterTools<T extends { name: string }>(
 
 /**
  * 从 MCP initialize 的 clientInfo 提取 caller。
- * client 约定：name 形如 "lingclaude-crush" / "crush (lingxi)"，
- * 取第一个已知成员名子串。
+ * client 约定：name 形如 "lingclaude-crush" / "crush (lingxi)"。
+ * 匹配锚定为前缀/边界匹配（灵克 review 185082 修订）：
+ * 子串匹配会让 zhibridge 误命中 zhibridge-backup 等任意前缀字符串。
  */
 export function getCallerFromClientInfo(
   clientName: string | undefined
@@ -124,7 +126,15 @@ export function getCallerFromClientInfo(
   // 成员名按长度倒序匹配，避免 lingflow 先命中 lingflow_plus
   const candidates = [...ADMIN_CALLERS].sort((a, b) => b.length - a.length);
   for (const name of candidates) {
-    if (lower.includes(name.toLowerCase())) return name;
+    const n = name.toLowerCase();
+    if (
+      lower === n ||
+      lower.startsWith(n + '-') ||
+      lower.startsWith(n + ' ') ||
+      lower.includes('(' + n + ')')
+    ) {
+      return name;
+    }
   }
   return undefined;
 }

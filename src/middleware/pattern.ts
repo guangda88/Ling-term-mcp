@@ -47,8 +47,17 @@ export const patternCheck: Middleware = (ctx) => {
     }
   }
 
+  // 双路解析器共用（呼应灵通第0项：探测/转发语义统一）:
+  // shell=true 时校验完整命令串（含元字符语义）；
+  // shell=false 时 execFile 直传 command+args，args 是字面量——
+  // 探测必须覆盖完整 argv 的危险模式，但不套用 shell 元字符规则。
+  const validationTarget =
+    ctx.shell || !ctx.cmdArgs || ctx.cmdArgs.length === 0
+      ? ctx.commandForValidation
+      : [ctx.command, ...ctx.cmdArgs].join(' ');
   const patternResult = securityValidator.validateCommandPatternsOnly(
-    ctx.commandForValidation
+    validationTarget,
+    ctx.shell
   );
   if (!patternResult.valid) {
     logRejection({

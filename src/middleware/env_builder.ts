@@ -3,8 +3,9 @@
  * Filters out secret-bearing env vars and shell injection vectors.
  */
 
-const BLOCKED_ENV_RE =
-  /SECRET|PASSWORD|TOKEN|API_KEY|PRIVATE_KEY|AUTH|CREDENTIAL|ACCESS_KEY/i;
+// 对齐 dsh 防御模式: spawn 时清洗 *KEY*/*SECRET*/*TOKEN*/*PASSWORD*。
+// 裸 KEY 通配覆盖 MY_KEY/KEYSTONE 等 API_KEY/PRIVATE_KEY/ACCESS_KEY 之外的键名变体。
+const BLOCKED_ENV_RE = /KEY|SECRET|PASSWORD|TOKEN|AUTH|CREDENTIAL/i;
 
 const SESSION_ENV_BLOCKLIST = new Set([
   'PATH',
