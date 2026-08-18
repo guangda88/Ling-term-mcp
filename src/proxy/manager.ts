@@ -9,6 +9,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { buildSafeEnv } from '../middleware/env_builder.js';
 
 export interface BackendConfig {
   command: string;
@@ -132,7 +133,9 @@ function killProcess(state: BackendState): void {
 function spawnBackend(name: string, state: BackendState): void {
   const { command, args, cwd, env } = state.config;
 
-  const childEnv = { ...process.env, ...env };
+  // env scrub: 从 parent process.env 中清洗 *KEY*/*SECRET*/*TOKEN*，
+  // 再叠加 backend 专属 env（含该 MCP server 自身需要的 API key）。
+  const childEnv = { ...buildSafeEnv(), ...env };
 
   const child = spawn(command, args, {
     cwd,

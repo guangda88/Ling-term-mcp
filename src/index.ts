@@ -38,6 +38,11 @@ import {
   extract as extractTool,
   gateway,
 } from './tools/gateway.js';
+import {
+  filterTools,
+  getCallerFromClientInfo,
+  isToolVisible,
+} from './tools/scoped_registry.js';
 
 /**
  * MCP Server configuration
@@ -52,6 +57,8 @@ const SERVER_CONFIG = {
  * Create and configure MCP Server
  */
 export function createServer(): Server {
+  let clientCaller: string | undefined;
+
   const server = new Server(
     {
       name: SERVER_CONFIG.name,
@@ -64,41 +71,51 @@ export function createServer(): Server {
     }
   );
 
+  // 从 clientInfo 提取 caller（scoped tool 可见性）
+  server.oninitialized = () => {
+    const info = server.getClientVersion();
+    clientCaller = getCallerFromClientInfo(info?.name);
+  };
+
   // Register tool list handler
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return {
-      tools: [
-        executeCommand.definition,
-        session.definition,
-        auditReport.definition,
-        authorize.definition,
-        governance.definition,
-        proxy.definition,
-        visibleState.definition,
-        infoDelta.definition,
-        distributeCallerSecret.definition,
-        readCallerSignature.definition,
-        pollMessages.definition,
-        postReply.definition,
-        openThread.definition,
-        lmQuery.definition,
-        lmCreate.definition,
-        lmTransition.definition,
-        lmRecordInfo.definition,
-        lmSearch.definition,
-        lmGet.definition,
-        searchTool.definition,
-        codeSearch.definition,
-        codeSearchRemote.definition,
-        extractTool.definition,
-        gateway.definition,
-      ],
-    };
+    const allTools = [
+      executeCommand.definition,
+      session.definition,
+      auditReport.definition,
+      authorize.definition,
+      governance.definition,
+      proxy.definition,
+      visibleState.definition,
+      infoDelta.definition,
+      distributeCallerSecret.definition,
+      readCallerSignature.definition,
+      pollMessages.definition,
+      postReply.definition,
+      openThread.definition,
+      lmQuery.definition,
+      lmCreate.definition,
+      lmTransition.definition,
+      lmRecordInfo.definition,
+      lmSearch.definition,
+      lmGet.definition,
+      searchTool.definition,
+      codeSearch.definition,
+      codeSearchRemote.definition,
+      extractTool.definition,
+      gateway.definition,
+    ];
+    return { tools: filterTools(allTools, clientCaller) };
   });
 
   // Register tool call handler
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
+
+    // scoped visibility: caller 不可见的工具直接拒绝（防御纵深）
+    if (!isToolVisible(name, clientCaller)) {
+      throw new Error(`Unknown tool: ${name}`);
+    }
 
     try {
       switch (name) {
