@@ -34,6 +34,30 @@ function persistProposal(p: ListProposal): void {
   }
 }
 
+/**
+ * BUS-02: Replay proposals.jsonl into the in-memory Map at module load.
+ * The log is append-only, so the last record for each id wins.
+ */
+function loadPersistedProposals(): void {
+  try {
+    if (!fs.existsSync(PROPOSAL_LOG_FILE)) return;
+    const lines = fs.readFileSync(PROPOSAL_LOG_FILE, 'utf8').split('\n');
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const p = JSON.parse(line) as ListProposal;
+        if (p && typeof p.id === 'string') {
+          proposals.set(p.id, p);
+        }
+      } catch {
+        // Skip malformed lines; never block startup on corrupt log
+      }
+    }
+  } catch {
+    // Non-fatal: unreadable log means starting with an empty Map
+  }
+}
+
 export type ListType = 'whitelist' | 'blacklist' | 'authorizable' | 'red_zone';
 export type ListAction = 'add' | 'remove';
 
@@ -67,6 +91,8 @@ export interface ListProposal {
 const proposals = new Map<string, ListProposal>();
 const PROPOSAL_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const MAX_PROPOSALS = 50;
+
+loadPersistedProposals();
 
 /**
  * Read-only list of protected entries that cannot be removed.
@@ -210,6 +236,7 @@ export function resolveProposal(
     return { error: `'${approver}' is not a registered 灵族 member` };
   }
 
+  loadPersistedProposals();
   const p = proposals.get(proposalId);
   if (!p) {
     return { error: `proposal '${proposalId}' not found` };
@@ -268,6 +295,7 @@ export function listProposals(filter?: {
   status?: ProposalStatus;
   proposer?: string;
 }): ListProposal[] {
+  loadPersistedProposals();
   cleanup();
   let results = [...proposals.values()];
   if (filter?.status) {
@@ -281,6 +309,7 @@ export function listProposals(filter?: {
 }
 
 export function getProposal(id: string): ListProposal | undefined {
+  loadPersistedProposals();
   const p = proposals.get(id);
   if (p && p.status === 'pending') {
     const now = Date.now();
@@ -301,4 +330,9 @@ export function snapshotLists() {
 
 export function _resetForTesting(): void {
   proposals.clear();
+  try {
+    if (fs.existsSync(PROPOSAL_LOG_FILE)) fs.unlinkSync(PROPOSAL_LOG_FILE);
+  } catch {
+    // Non-fatal in tests
+  }
 }

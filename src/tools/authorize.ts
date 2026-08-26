@@ -1,4 +1,7 @@
 import { randomUUID } from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 import { isKnownMember } from '../security/identity.js';
 
 interface AuthorizationRequest {
@@ -28,6 +31,51 @@ const AUTH_TTL_MS = 10 * 60 * 1000;
 const PERSISTENT_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const DEFAULT_MAX_USAGE = 100;
 const MAX_PENDING = 100;
+
+// Persist authorization requests to JSONL so they survive process restarts
+// and are visible across co-located instances (stdio / http / gateway).
+const AUTH_LOG_DIR =
+  process.env.LING_TERM_BASEDIR || path.join(os.homedir(), '.ling-term-mcp');
+const AUTH_LOG_FILE = path.join(AUTH_LOG_DIR, 'authorizations.jsonl');
+
+function persistRequest(r: AuthorizationRequest): void {
+  try {
+    if (!fs.existsSync(AUTH_LOG_DIR)) {
+      fs.mkdirSync(AUTH_LOG_DIR, { recursive: true });
+    }
+    fs.appendFileSync(AUTH_LOG_FILE, JSON.stringify(r) + '\n', 'utf8');
+  } catch {
+    // Non-fatal: persistence must never block the authorization flow
+  }
+}
+
+/**
+ * Replay authorizations.jsonl into the in-memory Map. The log is
+ * append-only, so the last record for each id wins. Called at module load
+ * and lazily on lookups so instances pick up requests created by
+ * co-located instances after startup.
+ */
+function loadPersistedRequests(): void {
+  try {
+    if (!fs.existsSync(AUTH_LOG_FILE)) return;
+    const lines = fs.readFileSync(AUTH_LOG_FILE, 'utf8').split('\n');
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const r = JSON.parse(line) as AuthorizationRequest;
+        if (r && typeof r.id === 'string') {
+          requests.set(r.id, r);
+        }
+      } catch {
+        // Skip malformed lines; never block startup on corrupt log
+      }
+    }
+  } catch {
+    // Non-fatal: unreadable log means starting with an empty Map
+  }
+}
+
+loadPersistedRequests();
 
 function cleanup(): void {
   const now = Date.now();
@@ -216,6 +264,7 @@ export const authorize = {
         };
 
         requests.set(id, req);
+        persistRequest(req);
 
         return {
           content: [
@@ -277,6 +326,7 @@ export const authorize = {
         }
 
         // Self-approval guard: requester cannot approve their own request
+        loadPersistedRequests();
         const req = requests.get(authorization_id);
         if (!req) {
           return {
@@ -318,6 +368,7 @@ export const authorize = {
         req.status = decision === 'approve' ? 'approved' : 'rejected';
         req.resolved_by = resolved_by;
         req.resolved_at = resolvedNow;
+        persistRequest(req);
 
         return {
           content: [
@@ -338,6 +389,7 @@ export const authorize = {
       }
 
       case 'list': {
+        loadPersistedRequests();
         cleanup();
 
         let results = [...requests.values()];
@@ -425,6 +477,7 @@ export const authorize = {
         };
 
         requests.set(id, req);
+        persistRequest(req);
 
         return {
           content: [
@@ -483,11 +536,13 @@ export const authorize = {
 export function getAuthorizationStatus(
   id: string
 ): AuthorizationRequest | undefined {
+  loadPersistedRequests();
   const req = requests.get(id);
   if (req && req.status === 'pending') {
     const now = Date.now();
     if (now > new Date(req.expires_at).getTime()) {
       req.status = 'expired';
+      persistRequest(req);
     }
   }
   return req;
@@ -498,6 +553,7 @@ export function checkRedZoneAuthorization(
   command: string,
   caller?: string
 ): { allowed: boolean; error?: string } {
+  loadPersistedRequests();
   const req = requests.get(authorizationId);
   if (!req) {
     return {
@@ -509,6 +565,7 @@ export function checkRedZoneAuthorization(
     const now = Date.now();
     if (now > new Date(req.expires_at).getTime()) {
       req.status = 'expired';
+      persistRequest(req);
     }
   }
   if (req.status !== 'approved') {
@@ -543,18 +600,21 @@ export function checkRedZoneAuthorization(
     if (req.usage_count !== undefined && req.max_usage !== undefined) {
       if (req.usage_count >= req.max_usage) {
         req.status = 'expired';
+        persistRequest(req);
         return {
           allowed: false,
           error: `Persistent token exhausted (${req.usage_count}/${req.max_usage} uses)`,
         };
       }
       req.usage_count++;
+      persistRequest(req);
     }
     return { allowed: true };
   }
 
   // Single-use token: consume after successful check
   req.status = 'expired';
+  persistRequest(req);
   return { allowed: true };
 }
 
@@ -571,6 +631,7 @@ export function verifyMeetingToken(
   usage_count?: number;
   max_usage?: number;
 } {
+  loadPersistedRequests();
   const req = requests.get(token);
   if (!req) {
     return { valid: false, reason: 'token not found' };
@@ -583,6 +644,7 @@ export function verifyMeetingToken(
   const now = Date.now();
   if (now > new Date(req.expires_at).getTime()) {
     req.status = 'expired';
+    persistRequest(req);
     return { valid: false, reason: 'token expired' };
   }
   // Check max_usage BEFORE status, so an exhausted token returns 'exhausted'
@@ -645,6 +707,7 @@ export function verifyMeetingToken(
       if (req.usage_count >= req.max_usage) {
         req.status = 'expired';
       }
+      persistRequest(req);
     }
   }
   return {
@@ -659,4 +722,9 @@ export function verifyMeetingToken(
 
 export function _resetForTesting(): void {
   requests.clear();
+  try {
+    if (fs.existsSync(AUTH_LOG_FILE)) fs.unlinkSync(AUTH_LOG_FILE);
+  } catch {
+    // Non-fatal in tests
+  }
 }

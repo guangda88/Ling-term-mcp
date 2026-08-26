@@ -1,0 +1,18 @@
+# Ling-term-mcp lefthook config — 灵族安全加固
+# lefthook 路径: /home/ai/.local/bin/lefthook (v2.1.9)
+
+pre-commit:
+  commands:
+    lint-staged:
+      run: npx lint-staged
+      stage_fixed: true
+    security-audit:
+      run: bash .git/hooks/pre-commit-security
+      stage_fixed: false
+      priority: 10
+
+pre-push:
+  commands:
+    security-check:
+      run: bash .git/hooks/pre-push-security
+      priority: 10

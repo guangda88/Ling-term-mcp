@@ -1,12 +1,11 @@
 # Security Registry v1
-# Auto-generated from src/security/validator.ts hardcoded arrays
-# Governance dual-sign changes are persisted back to this file
+# Auto-managed by lingxi governance dual-sign system
 version: 1
-updated: 2026-07-15
-source: src/security/validator.ts
+updated: 2026-08-23
+source: src/security/validator.ts + governance runtime
 
 whitelist:
-  description: "安全命令，可直接执行（无限制）"
+  description: ""安全命令，可直接执行（无限制）""
   commands:
   - ls
   - pwd
@@ -90,9 +89,10 @@ whitelist:
   - true
   - false
   - test
+  - persistcmd
 
 blacklist:
-  description: "绝对禁止的命令（无授权路径）"
+  description: ""绝对禁止的命令（无授权路径）""
   commands:
   - del
   - format
@@ -128,7 +128,7 @@ blacklist:
   - ip
 
 authorizable:
-  description: "危险但有合法用途的命令，需 authorization_id 放行"
+  description: ""危险但有合法用途的命令，需 authorization_id 放行""
   commands:
   - kill
   - killall
@@ -139,7 +139,7 @@ authorizable:
   - chown
 
 red_zone:
-  description: "网络/包管理/编排命令，需双签（族长+灵通）"
+  description: ""网络/包管理/编排命令，需双签（族长+灵通）""
   approvers: ["族长", "灵通"]
   commands:
   - ssh
@@ -174,9 +174,9 @@ red_zone:
   - ansible
 
 patterns:
-  description: "危险模式 - 对完整命令字符串做正则/字面匹配"
+  description: ""
   items:
   - pattern: "rm -rf /"
     type: literal
     category: blacklist
-    reason: "根目录递归删除"
+    reason: ""根目录递归删除""

@@ -5,6 +5,14 @@
  * Usage: proxy { command: 'call', backend, tool, args }  — call a tool
  *        proxy { command: 'list' }                        — list backends/tools
  *        proxy { command: 'status' }                      — show backend health
+ *
+ * 边界硬规则（2026-08-15 灵安议题明确）：
+ * - 本文件 = 灵犀 MCP 后端代理（向 lingbus/lingmemory/lingsearch/lingcreate/lingzhi/
+ *   lingresearch/lingminopt/lingyang/lingtongask 转发 MCP 工具调用）
+ * - ❌ 不涉及 proxy3 模型路由（API key / 限流 / 模型路由归灵通 lingflow proxy）
+ * - ❌ 不涉及 proxy 健康检查（归灵克 SDT-lc-002）
+ *
+ * 如需扩展模型路由/限流，请先确认是否越界 → 找灵通。
  */
 
 import {
