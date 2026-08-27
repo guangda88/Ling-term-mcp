@@ -160,18 +160,18 @@ describe('execute_command', () => {
     });
 
     const result = await executeCommand.handler({
-      command: 'cd /home && pwd',
+      command: 'cd /tmp && pwd',
       shell: true,
       session_id: 'cd-session',
       caller: 'lingxi',
     });
 
-    expect(result.content[0].text).toContain('/home');
+    expect(result.content[0].text).toContain('/tmp');
 
     const session = await import('../../src/sessions/store').then((m) =>
       m.getSession('cd-session')
     );
-    expect(session?.working_directory).toBe('/home');
+    expect(session?.working_directory).toBe('/tmp');
   });
 
   it('should support export in shell mode and update session env', async () => {
@@ -516,7 +516,7 @@ describe('execute_command', () => {
       });
 
       await executeCommand.handler({
-        command: 'cd /home',
+        command: 'cd /tmp',
         shell: true,
         session_id: 'cd-safe-session',
         caller: 'lingxi',
@@ -527,7 +527,7 @@ describe('execute_command', () => {
       const session = await import('../../src/sessions/store').then((m) =>
         m.getSession('cd-safe-session')
       );
-      expect(session?.working_directory).toBe('/home');
+      expect(session?.working_directory).toBe('/tmp');
     });
   });
 

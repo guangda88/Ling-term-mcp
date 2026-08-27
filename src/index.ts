@@ -21,6 +21,9 @@ import {
   distributeCallerSecret,
   readCallerSignature,
 } from './tools/caller_secret.js';
+import { generateL1Keypair, exportL1PublicKey } from './auth/layer1.js';
+import { createL2Certificate, verifyL2Certificate } from './auth/layer2.js';
+import { signL3Request, verifyL3Request } from './auth/layer3.js';
 import { startFileGuardian } from './audit/file_guardian.js';
 import {
   pollMessages,
@@ -90,6 +93,12 @@ export function createServer(): Server {
       infoDelta.definition,
       distributeCallerSecret.definition,
       readCallerSignature.definition,
+      generateL1Keypair.definition,
+      exportL1PublicKey.definition,
+      createL2Certificate.definition,
+      verifyL2Certificate.definition,
+      signL3Request.definition,
+      verifyL3Request.definition,
       pollMessages.definition,
       postReply.definition,
       openThread.definition,
@@ -139,6 +148,18 @@ export function createServer(): Server {
           return await distributeCallerSecret.handler(args);
         case 'read_caller_signature':
           return await readCallerSignature.handler(args);
+        case 'generate_l1_keypair':
+          return await generateL1Keypair.handler(args);
+        case 'export_l1_public_key':
+          return await exportL1PublicKey.handler(args);
+        case 'create_l2_certificate':
+          return await createL2Certificate.handler(args);
+        case 'verify_l2_certificate':
+          return await verifyL2Certificate.handler(args);
+        case 'sign_l3_request':
+          return await signL3Request.handler(args);
+        case 'verify_l3_request':
+          return await verifyL3Request.handler(args);
         case 'poll_messages':
           return await pollMessages.handler(args);
         case 'post_reply':

@@ -7,13 +7,13 @@ import {
   formatChangeRecord,
   getProtectedPaths,
   type FileChangeRecord,
-  type ProtectedPath,
 } from './protected_paths.js';
 
 const BASE_DIR =
   process.env.LING_TERM_BASEDIR || path.join(os.homedir(), '.ling-term-mcp');
 const CHANGE_LOG_FILE = path.join(BASE_DIR, 'file_changes.jsonl');
 const MAX_LOG_SIZE = 5 * 1024 * 1024; // 5MB
+const POLL_INTERVAL_MS = 2000; // 2秒轮询一次
 
 interface GuardianConfig {
   onCriticalChange?: (record: FileChangeRecord) => void;
@@ -21,7 +21,7 @@ interface GuardianConfig {
   onAnyChange?: (record: FileChangeRecord) => void;
 }
 
-let watchers: fs.FSWatcher[] = [];
+let pollTimer: ReturnType<typeof setTimeout> | null = null;
 let running = false;
 const debounceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 const DEBOUNCE_MS = 500;
@@ -45,8 +45,25 @@ function appendChangeLog(record: FileChangeRecord): void {
   }
 }
 
+function scanDirectory(dirPath: string, config: GuardianConfig): void {
+  try {
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        // 递归扫描子目录
+        scanDirectory(fullPath, config);
+      } else {
+        handleFileEvent(null, fullPath, config);
+      }
+    }
+  } catch (e) {
+    console.error(`[file_guardian] Error scanning ${dirPath}:`, e);
+  }
+}
+
 function handleFileEvent(
-  _eventType: string,
+  _eventType: string | null,
   filePath: string,
   config: GuardianConfig
 ): void {
@@ -101,50 +118,35 @@ function handleFileEvent(
   debounceTimers.set(filePath, timer);
 }
 
-function watchPath(
-  pp: ProtectedPath,
-  config: GuardianConfig
-): fs.FSWatcher | null {
-  const watchDir = pp.recursive ? pp.path : path.dirname(pp.path);
+function pollPaths(config: GuardianConfig): void {
+  const paths = getProtectedPaths();
+  let scanned = 0;
 
-  if (!fs.existsSync(watchDir)) {
-    console.error(
-      `[file_guardian] Watch path does not exist, skipping: ${watchDir}`
-    );
-    return null;
-  }
+  for (const pp of paths) {
+    const watchDir = pp.recursive ? pp.path : path.dirname(pp.path);
 
-  try {
-    const recursiveSupported =
-      process.platform === 'darwin' || process.platform === 'win32';
-    const useRecursive = pp.recursive && recursiveSupported;
-
-    const watcher = fs.watch(
-      watchDir,
-      { recursive: useRecursive },
-      (evt, filename) => {
-        if (!filename) return;
-        const fullPath = pp.recursive ? path.join(watchDir, filename) : pp.path;
-
-        handleFileEvent(evt, fullPath, config);
-      }
-    );
-
-    watcher.on('error', (err) => {
-      console.error(`[file_guardian] Watcher error for ${watchDir}:`, err);
-    });
-
-    if (pp.recursive && !recursiveSupported) {
+    if (!fs.existsSync(watchDir)) {
       console.error(
-        `[file_guardian] Recursive watch not supported on ${process.platform}, watching top-level only: ${watchDir}`
+        `[file_guardian] Path does not exist, skipping: ${watchDir}`
       );
+      continue;
     }
 
-    return watcher;
-  } catch (e) {
-    console.error(`[file_guardian] Failed to watch ${watchDir}:`, e);
-    return null;
+    try {
+      if (pp.recursive) {
+        scanDirectory(watchDir, config);
+      } else {
+        handleFileEvent(null, pp.path, config);
+      }
+      scanned++;
+    } catch (e) {
+      console.error(`[file_guardian] Failed to scan ${watchDir}:`, e);
+    }
   }
+
+  console.error(
+    `[file_guardian] Poll scan completed: ${scanned}/${paths.length} paths checked`
+  );
 }
 
 export function startFileGuardian(config: GuardianConfig = {}): void {
@@ -159,32 +161,28 @@ export function startFileGuardian(config: GuardianConfig = {}): void {
   }
   running = true;
 
-  const paths = getProtectedPaths();
-  let watchCount = 0;
+  // 初始扫描
+  pollPaths(config);
 
-  for (const pp of paths) {
-    const watcher = watchPath(pp, config);
-    if (watcher) {
-      watchers.push(watcher);
-      watchCount++;
-    }
-  }
+  // 设置定时器轮询
+  pollTimer = setInterval(() => {
+    pollPaths(config);
+  }, POLL_INTERVAL_MS);
 
-  console.error(
-    `[file_guardian] Started watching ${watchCount}/${paths.length} paths`
-  );
+  console.error('[file_guardian] Started polling mode');
 }
 
 export function stopFileGuardian(): void {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
   for (const timer of debounceTimers.values()) {
     clearTimeout(timer);
   }
   debounceTimers.clear();
 
-  for (const watcher of watchers) {
-    watcher.close();
-  }
-  watchers = [];
   running = false;
   console.error('[file_guardian] Stopped');
 }
@@ -201,7 +199,7 @@ export function getStatus(): {
   return {
     running,
     watchedPaths: getProtectedPaths().length,
-    activeWatchers: watchers.length,
+    activeWatchers: 0, // polling mode, no FSWatcher instances
   };
 }
 

@@ -215,7 +215,13 @@ function globMatch(pattern: string, filePath: string): boolean {
   // Restore globstar as match-anything
   regexStr = regexStr.replace(/##GLOBSTAR##/g, '.*');
   const regex = new RegExp('^' + regexStr + '$');
-  return regex.test(filePath);
+  if (regex.test(filePath)) return true;
+  // Non-glob pattern: also match as directory prefix (path starts with pattern/)
+  if (!pattern.includes('*')) {
+    const dirRegex = new RegExp('^' + regexStr + '/.*$');
+    if (dirRegex.test(filePath)) return true;
+  }
+  return false;
 }
 
 function isInAllowedPaths(target: string, allowedPaths: string[]): boolean {
