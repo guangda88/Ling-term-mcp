@@ -16,6 +16,7 @@ import { sensitivePathGate } from '../middleware/sensitive_path.js';
 import { sandboxGate } from '../middleware/sandbox.js';
 import { auditLogger } from '../middleware/audit.js';
 import { performanceTracker } from '../middleware/perf.js';
+import { authLayerCheck } from '../middleware/auth_layer.js';
 
 export function buildDefaultPipeline(): CommandPipeline {
   return new CommandPipeline()
@@ -25,6 +26,7 @@ export function buildDefaultPipeline(): CommandPipeline {
     .use(blacklistCheck)
     .use(whitelistCheck)
     .use(redZoneAuth)
+    .use(authLayerCheck)
     .use(sensitivePathGate)
     .use(sandboxGate)
     .setForward(commandExecutor)
