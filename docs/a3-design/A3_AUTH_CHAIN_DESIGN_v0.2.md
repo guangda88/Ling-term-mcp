@@ -149,11 +149,14 @@ interface L2CertPayload {
 
 interface CreateL2CertResult {
   ok: boolean;
-  l2_public_key_pem: string; // 用于后续 L3 签名验证
-  l2_private_key_pem: string; // ⚠️ 不安全，需外部存储
-  certificate: L2CertPayload;
+  l2_certificate: L2Cert; // { payload: L2CertPayload, signature: string }
+  l2_private_key: string; // ⚠️ 不安全，需外部存储
+  message?: string; // 安全提示
+}
+
+interface L2Cert {
+  payload: L2CertPayload;
   signature: string; // base64 Ed25519 signature
-  expiry_iso: string;
 }
 ```
 
@@ -168,8 +171,7 @@ Ed25519_sign(L1.priv, L2.pub || expiry || issuer_id || scope)
 ```typescript
 interface VerifyL2CertArgs {
   caller: string;
-  certificate: L2CertPayload;
-  signature: string;
+  certificate: L2Cert; // { payload: L2CertPayload, signature: string }
   l1_passphrase: string;
 }
 

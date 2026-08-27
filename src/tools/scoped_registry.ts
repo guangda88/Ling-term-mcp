@@ -57,6 +57,14 @@ const TOOL_SCOPES: Record<string, ToolScope> = {
   proxy: 'member',
   distribute_caller_secret: 'member',
   read_caller_signature: 'member',
+
+  // 认证链基础设施：仅 admin/member 域可生成/导出密钥和证书
+  generate_l1_keypair: 'admin',
+  export_l1_public_key: 'admin',
+  create_l2_certificate: 'member',
+  verify_l2_certificate: 'member',
+  sign_l3_request: 'member',
+  verify_l3_request: 'member',
 };
 
 /**
