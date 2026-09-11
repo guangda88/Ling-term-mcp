@@ -5,7 +5,7 @@
  *
  * 2026-08-23 改进 #4：增加 path-aware 豁免
  * - /tmp 下的 .py / .js 脚本（用户调试脚本）：跳过 red_zone 检查，无需 authorization_id
- * - 配置可通过环境变量 LING_TMP_SCRIPT_EXEMPT=0 关闭（默认开启）
+ * - 配置可通过环境变量 LING_TMP_SCRIPT_EXEMPT=1 开启（默认关闭）
  */
 
 import { securityValidator } from '../security/validator.js';
@@ -13,10 +13,10 @@ import { checkRedZoneAuthorization } from '../tools/authorize.js';
 import type { Middleware } from '../pipeline/middleware.js';
 import { logRejection } from '../audit/rejection_log.js';
 
-// 2026-08-23 改进 #4：path-aware 豁免（默认开启）
+// 2026-08-23 改进 #4：path-aware 豁免（默认关闭，需显式开启）
 // 仅豁免 /tmp 下的脚本调用，避免调试场景被全局放开 python3/node
 const TMP_SCRIPT_EXEMPT_ENABLED =
-  (process.env.LING_TMP_SCRIPT_EXEMPT ?? '1') !== '0';
+  (process.env.LING_TMP_SCRIPT_EXEMPT ?? '0') === '1';
 
 // 解释器列表：识别 "python3 /tmp/foo.py" / "npx /tmp/foo.js" 形式
 const INTERPRETER_RE =
